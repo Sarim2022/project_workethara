@@ -25,9 +25,9 @@ export function UserNav({ user }: UserNavProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-slate-200 dark:border-zinc-800 p-0 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user.image} alt={user.name} />
+            <AvatarImage src={undefined} alt={user.name || "User"} />
             <AvatarFallback className="bg-primary/10 text-primary font-bold">
-              {user.name.substring(0, 2).toUpperCase()}
+              {(user.name || "User").substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </Button>
