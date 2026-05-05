@@ -32,7 +32,7 @@ export function UserNav({ user }: UserNavProps) {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 mt-2 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 backdrop-blur-md bg-white/95 dark:bg-zinc-900/95" align="right" sideOffset={8}>
+      <DropdownMenuContent className="w-56 mt-2 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/5 backdrop-blur-md bg-white/95 dark:bg-zinc-900/95" align="end" sideOffset={8}>
         <DropdownMenuLabel className="font-normal p-4">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-bold leading-none text-slate-900 dark:text-white">{user.name}</p>
