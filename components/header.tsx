@@ -20,12 +20,14 @@ export async function Header() {
             </div>
             <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">Workethara</span>
           </Link>
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-            <Link href="/dashboard" className="flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:text-primary transition-colors">
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </Link>
-          </nav>
+          {user && (
+            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+              <Link href="/dashboard" className="flex items-center gap-2 text-slate-900 dark:text-slate-100 hover:text-primary transition-colors">
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </nav>
+          )}
         </div>
         <div className="flex items-center space-x-3">
           {user && (

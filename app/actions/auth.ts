@@ -68,3 +68,23 @@ export async function logout() {
   (await cookies()).set("session", "", { expires: new Date(0) });
   redirect("/login");
 }
+
+export async function resetPassword(formData: FormData) {
+  const email = formData.get("email") as string;
+  const newPassword = formData.get("password") as string;
+
+  if (!email || !newPassword) throw new Error("Missing email or password");
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  try {
+    await prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword }
+    });
+  } catch (error) {
+    throw new Error("User not found or database error");
+  }
+
+  return { success: true };
+}

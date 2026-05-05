@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Briefcase, ShieldCheck, User as UserIcon } from "lucide-react";
 import { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
+import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -100,7 +101,10 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <ForgotPasswordDialog />
+              </div>
               <Input id="password" name="password" type="password" required className="h-11" />
             </div>
             {error && <p className="text-sm text-red-500 font-medium text-center">{error}</p>}
