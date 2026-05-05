@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  // This automatically sends users to your login page
-  redirect("/sign-in");
+  // Use /login since /sign-in gave a 404
+  redirect("/login");
 }
