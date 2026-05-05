@@ -32,7 +32,7 @@ export async function createTask(formData: FormData) {
 
   // Handle unassigned special value
   if (rawData.assigneeId === "unassigned") {
-    rawData.assigneeId = null;
+    rawData.assigneeId = undefined;
   }
 
   const validated = taskSchema.safeParse(rawData);
