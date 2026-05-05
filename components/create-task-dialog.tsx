@@ -33,9 +33,9 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Controlled State for Selections
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("unassigned");
+  // Controlled State for Selections (updated to allow null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>("unassigned");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,15 +43,15 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
     setError("");
     
     const formData = new FormData(event.currentTarget);
-    // Explicitly set the controlled values to ensure they are sent
-    formData.set("projectId", selectedProjectId);
-    formData.set("assigneeId", selectedAssigneeId);
+    // Explicitly set the controlled values to ensure they are sent (handling nulls)
+    formData.set("projectId", selectedProjectId || "");
+    formData.set("assigneeId", selectedAssigneeId || "unassigned");
 
     try {
       await createTask(formData);
       setOpen(false);
       // Reset state
-      setSelectedProjectId("");
+      setSelectedProjectId(null);
       setSelectedAssigneeId("unassigned");
     } catch (error: any) {
       setError(error.message || "Failed to create task");
@@ -92,8 +92,8 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                 <Label htmlFor="projectId" className="text-sm font-medium">Project</Label>
                 <Select 
                   name="projectId" 
-                  value={selectedProjectId} 
-                  onValueChange={setSelectedProjectId}
+                  value={selectedProjectId ?? undefined} 
+                  onValueChange={(val) => setSelectedProjectId(val)}
                   required
                 >
                   <SelectTrigger className="focus:ring-primary overflow-hidden">
@@ -121,8 +121,8 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                 <Label htmlFor="assigneeId" className="text-sm font-medium">Assign To</Label>
                 <Select 
                   name="assigneeId" 
-                  value={selectedAssigneeId} 
-                  onValueChange={setSelectedAssigneeId}
+                  value={selectedAssigneeId ?? undefined} 
+                  onValueChange={(val) => setSelectedAssigneeId(val)}
                 >
                   <SelectTrigger className="focus:ring-primary overflow-hidden">
                     <SelectValue>
