@@ -1,0 +1,395 @@
+import { getStats, getProjects, getTasks, deleteTask, getAllMembers } from "@/app/actions/tasks";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreateTaskDialog } from "@/components/create-task-dialog";
+import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { AddMemberDialog } from "@/components/add-member-dialog";
+import { AdminActivityFeed } from "@/components/admin-activity-feed";
+import { TaskPhaseButton } from "@/components/task-phase-button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { TaskStatusSelect } from "@/components/task-status-select";
+import { 
+  Briefcase, 
+  CheckSquare, 
+  Trash2, 
+  AlertCircle,
+  Calendar,
+  FileText,
+  AlertTriangle,
+  FolderOpen,
+  RefreshCw,
+  LayoutDashboard,
+  User as UserIcon,
+  Users,
+  ShieldAlert,
+  Activity,
+  ArrowRight,
+  GitBranch,
+  Zap,
+  Target,
+  Plus
+} from "lucide-react";
+import { Role, TaskStatus, TaskPriority } from "@prisma/client";
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const currentUserRole = user.role;
+  const { projectCount, taskCount, completionRate } = await getStats();
+  const projects = await getProjects();
+  const tasks = await getTasks();
+  const allMembers = currentUserRole === Role.ADMIN ? await getAllMembers() : [];
+
+  const isOverdue = (task: any) => {
+    if (!task.dueDate || task.status === TaskStatus.DONE) return false;
+    return new Date(task.dueDate) < new Date();
+  };
+
+  const overdueCount = tasks.filter(isOverdue).length;
+
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-all duration-500">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+        
+        {/* Dashboard Header */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-2xl shadow-inner group transition-all hover:bg-primary/20">
+              <LayoutDashboard className="w-7 h-7 text-primary transition-transform group-hover:rotate-12" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-black tracking-tight bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
+                Hii, {user.name || user.email.split('@')[0]}
+              </h1>
+              <p className="text-sm text-muted-foreground font-medium">
+                {currentUserRole === Role.ADMIN 
+                  ? `Welcome back, Admin. Manage ${projectCount} active projects.`
+                  : `Welcome back. You have ${taskCount} tasks assigned.`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard">
+              <Button variant="outline" size="icon" className="rounded-xl shadow-sm hover:scale-110 active:scale-95 transition-all">
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </Link>
+            <div className="h-8 w-px bg-border mx-2" />
+            {/* Project creation is now only via the new Jira-style cards for better UX */}
+            {currentUserRole === Role.ADMIN && projects.length > 0 && (
+              <CreateTaskDialog projects={projects} members={allMembers} />
+            )}
+          </div>
+        </header>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Main Content (Left 2/3) */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* Jira-style Action Cards (Admin Only) */}
+            {currentUserRole === Role.ADMIN && (
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card className="glass-card rounded-2xl border-none shadow-lg hover:shadow-primary/10 transition-all group overflow-hidden">
+                  <div className="h-1 w-full bg-blue-500" />
+                  <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                    <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500 group-hover:scale-110 transition-transform">
+                      <Zap className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm">Create Sprint</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1">Plan team cycle</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold border border-blue-500/20 hover:bg-blue-500/5">
+                      START SPRINT
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card rounded-2xl border-none shadow-lg hover:shadow-primary/10 transition-all group overflow-hidden">
+                  <div className="h-1 w-full bg-primary" />
+                  <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                    <div className="p-3 bg-primary/10 rounded-xl text-primary group-hover:scale-110 transition-transform">
+                      <CreateProjectDialog userRole={currentUserRole} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm">Create Project</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1">New workspace</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card rounded-2xl border-none shadow-lg hover:shadow-primary/10 transition-all group overflow-hidden">
+                  <div className="h-1 w-full bg-slate-700" />
+                  <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                    <div className="p-3 bg-slate-700/10 rounded-xl text-slate-700 group-hover:scale-110 transition-transform">
+                      <GitBranch className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm">Repository</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1">Sync codebase</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold border border-slate-700/20 hover:bg-slate-700/5">
+                      NEW REPO
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card rounded-2xl border-none shadow-lg hover:shadow-primary/10 transition-all group overflow-hidden">
+                  <div className="h-1 w-full bg-rose-500" />
+                  <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                    <div className="p-3 bg-rose-500/10 rounded-xl text-rose-500 group-hover:scale-110 transition-transform">
+                      <Users className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm">Start Meeting</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1">Connect with team</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold border border-rose-500/20 hover:bg-rose-500/5">
+                      JOIN ROOM
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Stats Grid */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="glass-card rounded-3xl overflow-hidden relative group hover:scale-[1.02] transition-all">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Projects</span>
+                  <Briefcase className="h-4 w-4 text-blue-500/70" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">{projectCount}</div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card rounded-3xl overflow-hidden relative group hover:scale-[1.02] transition-all">
+                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Tasks</span>
+                  <CheckSquare className="h-4 w-4 text-indigo-500/70" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">{taskCount}</div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card rounded-3xl overflow-hidden relative group hover:scale-[1.02] transition-all">
+                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Rate</span>
+                  <Activity className="h-3 w-3 text-emerald-500/70" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-black text-slate-900 dark:text-white">{completionRate}%</div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card rounded-3xl overflow-hidden relative group hover:scale-[1.02] transition-all border-red-500/20">
+                <div className="absolute top-0 left-0 w-1 h-full bg-red-500" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Backlog</span>
+                  <AlertCircle className="h-4 w-4 text-red-500/70" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black text-red-600 dark:text-red-400">{overdueCount}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Task Overview */}
+            <Card className="glass-card rounded-[2rem] overflow-hidden border-none shadow-2xl">
+              <div className="px-8 py-6 bg-gradient-to-r from-slate-50/50 to-white/50 dark:from-slate-900/50 dark:to-slate-800/50 border-b border-border/50">
+                <h3 className="text-lg font-black flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  Task Overview
+                </h3>
+              </div>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-slate-50/30 dark:bg-slate-900/30">
+                    <TableRow className="border-border/50 hover:bg-transparent">
+                      <TableHead className="px-8 py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest">Task Info</TableHead>
+                      <TableHead className="py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest">Project & Owner</TableHead>
+                      <TableHead className="py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest">Assignee</TableHead>
+                      <TableHead className="py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest">Phase</TableHead>
+                      <TableHead className="px-8 py-4 text-right font-black text-slate-400 uppercase text-[10px] tracking-widest">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic text-sm">
+                          No tasks found in your dashboard.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      tasks.map((task: any) => {
+                        const isAssignedToMe = task.assigneeId === user.id;
+                        const statusClass = `status-accent-${task.status.toLowerCase().replace('_', '-')}`;
+                        
+                        return (
+                          <TableRow key={task.id} className={cn("border-border/40 group hover:bg-primary/[0.03] transition-colors", statusClass)}>
+                            <TableCell className="px-8 py-5">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">{task.title}</span>
+                                <span className="text-xs text-muted-foreground line-clamp-1 opacity-70">{task.description || "—"}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-5">
+                              <div className="flex flex-col gap-2">
+                                <Badge variant="outline" className="w-fit font-black text-[9px] uppercase px-2 py-0.5 border-primary/20 bg-primary/5 text-primary">
+                                  {task.project.name}
+                                </Badge>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-semibold">
+                                  <ShieldAlert className="h-3 w-3 opacity-50" />
+                                  <span>{task.project.createdBy?.name || "System"}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-5">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                  <UserIcon className="h-4 w-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                                  {task.assignee?.name || "Unassigned"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-5">
+                              {isAssignedToMe || currentUserRole === Role.ADMIN ? (
+                                <TaskPhaseButton taskId={task.id} currentStatus={task.status} />
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] font-black uppercase border-border/50">{task.status}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-8 py-5 text-right">
+                              {currentUserRole === Role.ADMIN && (
+                                <form action={async () => {
+                                  "use server";
+                                  await deleteTask(task.id);
+                                }}>
+                                  <Button variant="ghost" size="icon" type="submit" className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </form>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar (Right 1/3) */}
+          <div className="space-y-8">
+            {currentUserRole === Role.ADMIN && <AdminActivityFeed />}
+            
+            {/* Active Projects Card */}
+            <Card className="glass-card rounded-[2rem] border-none shadow-2xl overflow-hidden">
+              <CardHeader className="px-6 py-5 bg-gradient-to-br from-primary/5 to-transparent border-b border-border/50">
+                <CardTitle className="text-sm font-bold flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <FolderOpen className="h-4 w-4" />
+                  </div>
+                  {currentUserRole === Role.ADMIN ? "Global Projects" : "My Projects"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                {projects.length === 0 ? (
+                  <div className="text-center py-10 space-y-3">
+                    <div className="flex justify-center">
+                      <FolderOpen className="h-10 w-10 text-slate-200 dark:text-slate-800" />
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No active projects</p>
+                  </div>
+                ) : (
+                  projects.map((p) => (
+                    <div key={p.id} className="group relative p-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 border border-border/40 hover:border-primary/30 hover:bg-primary/[0.02] hover:-translate-y-1 transition-all duration-300">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-start">
+                          <span className="font-black text-sm text-slate-900 dark:text-white leading-tight">{p.name}</span>
+                          <Badge variant="outline" className="text-[9px] font-black px-1.5 py-0 border-primary/20 text-primary">
+                            {p.members?.length || 0} MEMBERS
+                          </Badge>
+                        </div>
+                        {p.clientDetails && (
+                          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                            <Briefcase className="h-3 w-3" />
+                            <span className="truncate">{p.clientDetails}</span>
+                          </div>
+                        )}
+                      </div>
+                      {currentUserRole === Role.ADMIN && (
+                        <div className="mt-4 flex justify-end pt-2 border-t border-border/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <AddMemberDialog projectId={p.id} projectName={p.name} />
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+            {/* Member Quick Links */}
+            {currentUserRole === Role.MEMBER && (
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-primary/5 transition-colors group cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500 group-hover:scale-110 transition-transform">
+                      <Zap className="h-3 w-3" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">My Sprint</span>
+                  </div>
+                </Card>
+                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-amber-500/5 transition-colors group cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-500 group-hover:scale-110 transition-transform">
+                      <AlertTriangle className="h-3 w-3" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">My Issues</span>
+                  </div>
+                </Card>
+                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-emerald-500/5 transition-colors group cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 group-hover:scale-110 transition-transform">
+                      <CheckSquare className="h-3 w-3" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">My Tasks</span>
+                  </div>
+                </Card>
+                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-slate-500/5 transition-colors group cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-slate-500/10 rounded-lg text-slate-500 group-hover:scale-110 transition-transform">
+                      <GitBranch className="h-3 w-3" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Joined Repo</span>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

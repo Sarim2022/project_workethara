@@ -1,0 +1,92 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  TESTING
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()"))
+  name          String?
+  email         String    @unique
+  password      String
+  role          Role      @default(MEMBER)
+  
+  createdProjects Project[] @relation("ProjectCreator")
+  projects        Project[] @relation("ProjectMembers")
+  assignedTasks   Task[]    @relation("AssignedTasks")
+  statusLogs      StatusLog[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Project {
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  description String?
+  clientDetails String?
+  deadline    DateTime?
+  
+  createdById String
+  createdBy   User     @relation("ProjectCreator", fields: [createdById], references: [id])
+  
+  members     User[]   @relation("ProjectMembers")
+  tasks       Task[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Task {
+  id          String       @id @default(dbgenerated("gen_random_uuid()"))
+  title       String
+  description String?
+  status      TaskStatus   @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  assigneeId  String?
+  assignee    User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  
+  logs        StatusLog[]
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model StatusLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  oldStatus TaskStatus?
+  newStatus TaskStatus
+  createdAt DateTime @default(now())
+}
