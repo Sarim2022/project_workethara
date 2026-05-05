@@ -20,7 +20,9 @@ interface TaskStatusSelectProps {
 export function TaskStatusSelect({ taskId, initialStatus }: TaskStatusSelectProps) {
   const [isPending, startTransition] = useTransition();
 
-  const handleStatusChange = (value: string) => {
+  const handleStatusChange = (value: string | null) => {
+    if (!value) return;
+    
     startTransition(async () => {
       await updateTaskStatus(taskId, value as TaskStatus);
     });
@@ -28,7 +30,7 @@ export function TaskStatusSelect({ taskId, initialStatus }: TaskStatusSelectProp
 
   return (
     <Select
-      defaultValue={initialStatus}
+      defaultValue={initialStatus ?? undefined}
       onValueChange={handleStatusChange}
       disabled={isPending}
     >
