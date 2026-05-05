@@ -1,4 +1,5 @@
-import { Role, User } from "@prisma/client";
+import { Role, type User } from "@prisma/client";
+export type { User };
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
