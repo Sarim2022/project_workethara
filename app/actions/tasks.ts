@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { Role, TaskStatus, TaskPriority } from "@/prisma/generated-client";
+import { Role, TaskStatus, TaskPriority } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { redirect } from "next/navigation";

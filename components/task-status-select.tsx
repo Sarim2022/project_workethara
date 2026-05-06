@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { TaskStatus } from "@/prisma/generated-client";
+import { TaskStatus } from "@prisma/client";
 import { updateTaskStatus } from "@/app/actions/tasks";
 import {
   Select,

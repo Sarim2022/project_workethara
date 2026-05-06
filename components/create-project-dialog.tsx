@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createProject } from "@/app/actions/tasks";
 import { Plus, Calendar } from "lucide-react";
-import { Role } from "@/prisma/generated-client";
+import { Role } from "@prisma/client";
 
 interface CreateProjectDialogProps {
   userRole: Role;

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ListTodo, CheckCircle2, Clock, PlayCircle, ClipboardList, User as UserIcon, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { TaskStatus } from "@/prisma/generated-client";
+import { TaskStatus } from "@prisma/client";
 import { deletePersonalTodo } from "@/app/actions/features";
 import { useState } from "react";
 

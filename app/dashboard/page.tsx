@@ -46,7 +46,7 @@ import {
   Target,
   Plus
 } from "lucide-react";
-import { Role, TaskStatus, TaskPriority } from "@/prisma/generated-client";
+import { Role, TaskStatus, TaskPriority } from "@prisma/client";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";

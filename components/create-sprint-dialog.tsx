@@ -114,7 +114,7 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
               </div>
               <div className="grid gap-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Duration (Weeks)</Label>
-                <Select name="duration" value={duration} onValueChange={updateWeeks}>
+                <Select name="duration" value={duration} onValueChange={(val) => val && updateWeeks(val)}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200">
                     <SelectValue />
                   </SelectTrigger>

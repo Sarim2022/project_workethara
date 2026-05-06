@@ -2,7 +2,7 @@ import Link from "next/link";
 import { UserNav } from "./user-nav";
 import { getCurrentUser } from "@/lib/auth";
 import { Briefcase, LayoutDashboard, LogOut, Mail } from "lucide-react";
-import { Role } from "@/prisma/generated-client";
+import { Role } from "@prisma/client";
 import { UserSearch } from "./user-search";
 import { Button } from "./ui/button";
 import { logout } from "@/app/actions/auth";

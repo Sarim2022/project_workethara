@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { login } from "@/app/actions/auth";
 import Link from "next/link";
 import { Briefcase, ShieldCheck, User as UserIcon, Eye, EyeOff } from "lucide-react";
-import { Role } from "@/prisma/generated-client";
+import { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
 
