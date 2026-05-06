@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { login } from "@/app/actions/auth";
 import Link from "next/link";
-import { Briefcase, ShieldCheck, User as UserIcon } from "lucide-react";
-import { Role } from "@prisma/client";
+import { Briefcase, ShieldCheck, User as UserIcon, Eye, EyeOff } from "lucide-react";
+import { Role } from "@/prisma/generated-client";
 import { cn } from "@/lib/utils";
 import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
 
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedRole, setSelectedRole] = useState<Role>(Role.MEMBER);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +106,23 @@ export default function LoginPage() {
                 <Label htmlFor="password">Password</Label>
                 <ForgotPasswordDialog />
               </div>
-              <Input id="password" name="password" type="password" required className="h-11" />
+              <div className="relative group">
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type={showPassword ? "text" : "password"} 
+                  required 
+                  className="h-11 pr-10 focus-visible:ring-primary" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium italic">Hint: Must be at least 8 characters long.</p>
             </div>
             {error && <p className="text-sm text-red-500 font-medium text-center">{error}</p>}
           </CardContent>

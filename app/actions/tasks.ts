@@ -2,9 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { Role, TaskStatus, TaskPriority } from "@prisma/client";
+import { Role, TaskStatus, TaskPriority } from "@/prisma/generated-client";
 import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
+import { redirect } from "next/navigation";
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -30,7 +31,6 @@ export async function createTask(formData: FormData) {
     dueDate: formData.get("dueDate")?.toString() || null,
   };
 
-  // Handle unassigned special value
   if (rawData.assigneeId === "unassigned") {
     rawData.assigneeId = undefined;
   }
@@ -41,12 +41,17 @@ export async function createTask(formData: FormData) {
     throw new Error(errorMsg);
   }
 
-  // Validate assignee exists in DB (Security & Integrity)
+  // Security: Verify project ownership before creating task
+  const project = await prisma.project.findFirst({
+    where: { id: validated.data.projectId, createdById: user.id }
+  });
+  if (!project) throw new Error("Unauthorized: You do not own this project.");
+
   if (validated.data.assigneeId) {
     const assignee = await prisma.user.findUnique({
       where: { id: validated.data.assigneeId }
     });
-    if (!assignee) throw new Error("Selected team member does not exist in the database.");
+    if (!assignee) throw new Error("Selected team member does not exist.");
   }
 
   await prisma.task.create({
@@ -68,12 +73,17 @@ export async function updateTaskPhase(taskId: string) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  const task = await prisma.task.findUnique({ 
+    where: { id: taskId },
+    include: { project: true }
+  });
   if (!task) throw new Error("Task not found");
 
-  // Only Admin or Assignee can update
+  // Only Admin (Owner) or Assignee can update
   if (user.role !== Role.ADMIN && task.assigneeId !== user.id) {
-    throw new Error("Unauthorized");
+    if (task.project.createdById !== user.id) {
+      throw new Error("Unauthorized");
+    }
   }
 
   const phases: TaskStatus[] = [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.TESTING, TaskStatus.DONE];
@@ -103,11 +113,16 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  const task = await prisma.task.findUnique({ 
+    where: { id: taskId },
+    include: { project: true }
+  });
   if (!task) throw new Error("Task not found");
 
   if (user.role !== Role.ADMIN && task.assigneeId !== user.id) {
-    throw new Error("Unauthorized");
+    if (task.project.createdById !== user.id) {
+      throw new Error("Unauthorized");
+    }
   }
 
   await prisma.$transaction([
@@ -130,16 +145,21 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
 }
 
 export async function getActivityFeed() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  // Data Isolation: Only see activity for projects you are involved in
+  const where = user.role === Role.ADMIN 
+    ? { task: { project: { createdById: user.id } } }
+    : { task: { project: { members: { some: { id: user.id } } } } };
+
   return await prisma.statusLog.findMany({
+    where,
     take: 5,
     orderBy: { createdAt: "desc" },
     include: {
-      user: {
-        select: { name: true, email: true, role: true }
-      },
-      task: {
-        select: { title: true }
-      }
+      user: { select: { name: true, email: true, role: true } },
+      task: { select: { title: true } }
     }
   });
 }
@@ -162,9 +182,7 @@ export async function createProject(formData: FormData) {
       clientDetails,
       deadline: deadlineStr ? new Date(deadlineStr) : null,
       createdById: user.id,
-      members: {
-        connect: { id: user.id }
-      }
+      members: { connect: { id: user.id } }
     },
   });
 
@@ -175,16 +193,18 @@ export async function addMemberToProject(projectId: string, userEmail: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== Role.ADMIN) throw new Error("Unauthorized");
 
+  // Security: Verify project ownership
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, createdById: user.id }
+  });
+  if (!project) throw new Error("Unauthorized: You do not own this project.");
+
   const memberToAdd = await prisma.user.findUnique({ where: { email: userEmail } });
   if (!memberToAdd) throw new Error("User not found");
 
   await prisma.project.update({
     where: { id: projectId },
-    data: {
-      members: {
-        connect: { id: memberToAdd.id }
-      }
-    }
+    data: { members: { connect: { id: memberToAdd.id } } }
   });
 
   revalidatePath("/dashboard");
@@ -193,6 +213,12 @@ export async function addMemberToProject(projectId: string, userEmail: string) {
 export async function deleteTask(taskId: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== Role.ADMIN) throw new Error("Unauthorized");
+
+  // Security: Verify task ownership via project
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, project: { createdById: user.id } }
+  });
+  if (!task) throw new Error("Unauthorized");
 
   await prisma.task.delete({ where: { id: taskId } });
   revalidatePath("/dashboard");
@@ -203,17 +229,13 @@ export async function getProjects() {
   const user = await getCurrentUser();
   if (!user) return [];
 
-  if (user.role === Role.ADMIN) {
-    return await prisma.project.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { members: true }
-    });
-  }
+  // Data Isolation: Admins only see projects THEY created. Members see projects they are IN.
+  const where = user.role === Role.ADMIN 
+    ? { createdById: user.id } 
+    : { members: { some: { id: user.id } } };
 
   return await prisma.project.findMany({
-    where: {
-      members: { some: { id: user.id } }
-    },
+    where,
     orderBy: { createdAt: "desc" },
     include: { members: true }
   });
@@ -223,23 +245,18 @@ export async function getTasks() {
   const user = await getCurrentUser();
   if (!user) return [];
 
-  if (user.role === Role.ADMIN) {
-    return await prisma.task.findMany({
-      include: { 
-        project: { include: { createdBy: true } }, 
-        assignee: true 
-      },
-      orderBy: { createdAt: "desc" }
-    });
-  }
+  // Data Isolation: Admins see tasks in their projects. Members see tasks assigned to them or in their projects.
+  const where = user.role === Role.ADMIN 
+    ? { project: { createdById: user.id } }
+    : {
+        OR: [
+          { assigneeId: user.id },
+          { project: { members: { some: { id: user.id } } } }
+        ]
+      };
 
   return await prisma.task.findMany({
-    where: {
-      OR: [
-        { assigneeId: user.id },
-        { project: { members: { some: { id: user.id } } } }
-      ]
-    },
+    where,
     include: { 
       project: { include: { createdBy: true } }, 
       assignee: true 
@@ -259,8 +276,13 @@ export async function getStats() {
   const user = await getCurrentUser();
   if (!user) return { projectCount: 0, taskCount: 0, completedCount: 0, completionRate: 0 };
 
-  const projectWhere = user.role === Role.ADMIN ? {} : { members: { some: { id: user.id } } };
-  const taskWhere = user.role === Role.ADMIN ? {} : { assigneeId: user.id };
+  const projectWhere = user.role === Role.ADMIN 
+    ? { createdById: user.id } 
+    : { members: { some: { id: user.id } } };
+  
+  const taskWhere = user.role === Role.ADMIN 
+    ? { project: { createdById: user.id } }
+    : { assigneeId: user.id };
 
   const [projectCount, taskCount, completedCount] = await Promise.all([
     prisma.project.count({ where: projectWhere }),
@@ -271,6 +293,46 @@ export async function getStats() {
   const completionRate = taskCount > 0 ? Math.round((completedCount / taskCount) * 100) : 0;
 
   return { projectCount, taskCount, completedCount, completionRate };
+}
+
+export async function updateProject(id: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.ADMIN) throw new Error("Unauthorized");
+
+  // Security: Verify ownership
+  const project = await prisma.project.findFirst({
+    where: { id, createdById: user.id }
+  });
+  if (!project) throw new Error("Unauthorized");
+
+  const name = formData.get("name") as string;
+  const clientDetails = formData.get("clientDetails") as string;
+
+  await prisma.project.update({
+    where: { id },
+    data: { name, clientDetails }
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/projects/${id}`);
+}
+
+export async function deleteProject(id: string) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.ADMIN) throw new Error("Unauthorized");
+
+  // Security: Verify ownership
+  const project = await prisma.project.findFirst({
+    where: { id, createdById: user.id }
+  });
+  if (!project) throw new Error("Unauthorized");
+
+  await prisma.project.delete({
+    where: { id }
+  });
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
 
 export async function searchUserByEmail(email: string) {

@@ -5,7 +5,7 @@ import { updateTaskPhase } from "@/app/actions/tasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, ArrowRight } from "lucide-react";
-import { TaskStatus } from "@prisma/client";
+import { TaskStatus } from "@/prisma/generated-client";
 
 interface TaskPhaseButtonProps {
   taskId: string;

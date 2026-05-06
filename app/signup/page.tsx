@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { signup } from "@/app/actions/auth";
 import Link from "next/link";
-import { Briefcase, Info } from "lucide-react";
+import { Briefcase, Info, Eye, EyeOff } from "lucide-react";
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,7 +72,23 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-slate-500">Secure Password</Label>
-              <Input id="password" name="password" type="password" required className="h-11 rounded-xl border-slate-200 focus:ring-primary" />
+              <div className="relative group">
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type={showPassword ? "text" : "password"} 
+                  required 
+                  className="h-11 rounded-xl border-slate-200 focus:ring-primary pr-10" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium italic">Hint: Must be at least 8 characters long.</p>
             </div>
             
             {error && (

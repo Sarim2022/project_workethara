@@ -1,7 +1,14 @@
 import { getStats, getProjects, getTasks, deleteTask, getAllMembers } from "@/app/actions/tasks";
+import { getPersonalTodos } from "@/app/actions/features";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { CreateSprintDialog } from "@/components/create-sprint-dialog";
+import { RepositoryDialog } from "@/components/repository-dialog";
+import { JoinRoomDialog, CreateRoomDialog } from "@/components/meeting-dialogs";
+import { CreateTodoDialog } from "@/components/create-todo-dialog";
+import { MyTasksDialog } from "@/components/my-tasks-dialog";
+import { TeamListDialog } from "@/components/team-list-dialog";
 import { AddMemberDialog } from "@/components/add-member-dialog";
 import { AdminActivityFeed } from "@/components/admin-activity-feed";
 import { TaskPhaseButton } from "@/components/task-phase-button";
@@ -39,7 +46,7 @@ import {
   Target,
   Plus
 } from "lucide-react";
-import { Role, TaskStatus, TaskPriority } from "@prisma/client";
+import { Role, TaskStatus, TaskPriority } from "@/prisma/generated-client";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -52,6 +59,7 @@ export default async function DashboardPage() {
   const { projectCount, taskCount, completionRate } = await getStats();
   const projects = await getProjects();
   const tasks = await getTasks();
+  const personalTodos = await getPersonalTodos();
   const allMembers = currentUserRole === Role.ADMIN ? await getAllMembers() : [];
 
   const isOverdue = (task: any) => {
@@ -89,10 +97,18 @@ export default async function DashboardPage() {
               </Button>
             </Link>
             <div className="h-8 w-px bg-border mx-2" />
-            {/* Project creation is now only via the new Jira-style cards for better UX */}
-            {currentUserRole === Role.ADMIN && projects.length > 0 && (
-              <CreateTaskDialog projects={projects} members={allMembers} />
-            )}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <MyTasksDialog tasks={tasks} currentUserId={user.id} personalTodos={personalTodos} />
+                <CreateTodoDialog />
+              </div>
+              {currentUserRole === Role.ADMIN && projects.length > 0 && (
+                <>
+                  <CreateTaskDialog projects={projects} members={allMembers} />
+                  <TeamListDialog members={allMembers} />
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -113,9 +129,7 @@ export default async function DashboardPage() {
                       <h4 className="font-bold text-sm">Create Sprint</h4>
                       <p className="text-[10px] text-muted-foreground mt-1">Plan team cycle</p>
                     </div>
-                    <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold border border-blue-500/20 hover:bg-blue-500/5">
-                      START SPRINT
-                    </Button>
+                    <CreateSprintDialog projects={projects} />
                   </CardContent>
                 </Card>
 
@@ -139,12 +153,10 @@ export default async function DashboardPage() {
                       <GitBranch className="h-6 w-6" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm">Repository</h4>
-                      <p className="text-[10px] text-muted-foreground mt-1">Sync codebase</p>
+                      <h4 className="font-bold text-sm">Our Codebase</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1">Sync repository</p>
                     </div>
-                    <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold border border-slate-700/20 hover:bg-slate-700/5">
-                      NEW REPO
-                    </Button>
+                    <RepositoryDialog projects={projects} />
                   </CardContent>
                 </Card>
 
@@ -158,9 +170,10 @@ export default async function DashboardPage() {
                       <h4 className="font-bold text-sm">Start Meeting</h4>
                       <p className="text-[10px] text-muted-foreground mt-1">Connect with team</p>
                     </div>
-                    <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold border border-rose-500/20 hover:bg-rose-500/5">
-                      JOIN ROOM
-                    </Button>
+                    <div className="w-full flex flex-col gap-2">
+                      <JoinRoomDialog />
+                      <CreateRoomDialog />
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -234,8 +247,25 @@ export default async function DashboardPage() {
                   <TableBody>
                     {tasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic text-sm">
-                          No tasks found in your dashboard.
+                        <TableCell colSpan={5} className="h-64 text-center">
+                          <div className="flex flex-col items-center justify-center gap-4 py-10">
+                            <div className="p-4 bg-primary/5 rounded-full border border-dashed border-primary/20">
+                              <CheckSquare className="h-12 w-12 text-primary/40" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Your Board is Clear</p>
+                              <p className="text-xs text-slate-500 max-w-[200px] mx-auto leading-relaxed font-medium">
+                                {currentUserRole === Role.ADMIN 
+                                  ? "You haven't created any tasks yet. Start assigning work to your team."
+                                  : "Great job! You have no pending tasks assigned to you."}
+                              </p>
+                            </div>
+                            {currentUserRole === Role.ADMIN && projects.length > 0 && (
+                              <div className="mt-2">
+                                <CreateTaskDialog projects={projects} members={allMembers} />
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -317,35 +347,49 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 {projects.length === 0 ? (
-                  <div className="text-center py-10 space-y-3">
+                  <div className="text-center py-12 space-y-5">
                     <div className="flex justify-center">
-                      <FolderOpen className="h-10 w-10 text-slate-200 dark:text-slate-800" />
+                      <div className="p-5 bg-slate-50 dark:bg-zinc-800/50 rounded-full border border-dashed border-slate-200 dark:border-zinc-800">
+                        <FolderOpen className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+                      </div>
                     </div>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No active projects</p>
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">No Active Projects</p>
+                      <p className="text-[10px] text-slate-400 font-bold max-w-[150px] mx-auto leading-relaxed">
+                        Every great work begins with a single workspace.
+                      </p>
+                    </div>
+                    {currentUserRole === Role.ADMIN && (
+                      <div className="flex justify-center pt-2">
+                        <CreateProjectDialog userRole={currentUserRole} />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   projects.map((p) => (
-                    <div key={p.id} className="group relative p-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 border border-border/40 hover:border-primary/30 hover:bg-primary/[0.02] hover:-translate-y-1 transition-all duration-300">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-start">
-                          <span className="font-black text-sm text-slate-900 dark:text-white leading-tight">{p.name}</span>
-                          <Badge variant="outline" className="text-[9px] font-black px-1.5 py-0 border-primary/20 text-primary">
-                            {p.members?.length || 0} MEMBERS
-                          </Badge>
+                    <Link href={`/projects/${p.id}`} key={p.id} className="block group">
+                      <div className="relative p-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 border border-border/40 group-hover:border-primary/30 group-hover:bg-primary/[0.02] group-hover:-translate-y-1 transition-all duration-300">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex justify-between items-start">
+                            <span className="font-black text-sm text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors">{p.name}</span>
+                            <Badge variant="outline" className="text-[9px] font-black px-1.5 py-0 border-primary/20 text-primary">
+                              {p.members?.length || 0} MEMBERS
+                            </Badge>
+                          </div>
+                          {p.clientDetails && (
+                            <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                              <Briefcase className="h-3 w-3" />
+                              <span className="truncate">{p.clientDetails}</span>
+                            </div>
+                          )}
                         </div>
-                        {p.clientDetails && (
-                          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                            <Briefcase className="h-3 w-3" />
-                            <span className="truncate">{p.clientDetails}</span>
+                        {currentUserRole === Role.ADMIN && (
+                          <div className="mt-4 flex justify-end pt-2 border-t border-border/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <AddMemberDialog projectId={p.id} projectName={p.name} />
                           </div>
                         )}
                       </div>
-                      {currentUserRole === Role.ADMIN && (
-                        <div className="mt-4 flex justify-end pt-2 border-t border-border/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <AddMemberDialog projectId={p.id} projectName={p.name} />
-                        </div>
-                      )}
-                    </div>
+                    </Link>
                   ))
                 )}
               </CardContent>
