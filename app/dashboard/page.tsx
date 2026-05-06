@@ -1,5 +1,6 @@
 import { getStats, getProjects, getTasks, deleteTask, getAllMembers } from "@/app/actions/tasks";
-import { getPersonalTodos, getSprints, getAssignedSprintTasks } from "@/app/actions/features";
+import { getPersonalTodos, getSprints, getAssignedSprintTasks, getAssignedSprints, getMemberRepositoryLinks } from "@/app/actions/features";
+import { getAdminTeams } from "@/app/actions/teams";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
@@ -13,6 +14,7 @@ import { AddMemberDialog } from "@/components/add-member-dialog";
 import { AdminActivityFeed } from "@/components/admin-activity-feed";
 import { TaskPhaseButton } from "@/components/task-phase-button";
 import { MemberSprintCardList } from "@/components/member-sprint-card-list";
+import { MemberQuickActions } from "@/components/member-quick-actions";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -63,9 +65,13 @@ export default async function DashboardPage() {
   const tasks = await getTasks();
   const personalTodos = await getPersonalTodos();
   const allMembers = currentUserRole === Role.ADMIN ? await getAllMembers() : [];
+  const adminTeams = currentUserRole === Role.ADMIN ? await getAdminTeams() : [];
   
   const sprints = currentUserRole === Role.ADMIN ? await getSprints() : [];
   const mySprintTasks = currentUserRole === Role.MEMBER ? await getAssignedSprintTasks(user.id) : [];
+  const mySprints = currentUserRole === Role.MEMBER ? await getAssignedSprints(user.id) : [];
+  const myRepositories = currentUserRole === Role.MEMBER ? await getMemberRepositoryLinks(user.id) : [];
+  const myIssues = currentUserRole === Role.MEMBER ? tasks.filter((task) => task.assigneeId === user.id) : [];
 
   const isOverdue = (task: any) => {
     if (!task.dueDate || task.status === TaskStatus.DONE) return false;
@@ -98,30 +104,42 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <Link href="/dashboard">
               <Button variant="outline" size="icon" className="rounded-xl shadow-sm hover:scale-110 active:scale-95 transition-all">
                 <RefreshCw className="w-4 h-4" />
               </Button>
             </Link>
             <div className="h-8 w-px bg-border mx-2" />
-            <div className="flex items-center gap-3">
+            {currentUserRole === Role.MEMBER && (
+              <MemberQuickActions
+                tasks={tasks}
+                personalTodos={personalTodos}
+                sprints={mySprints}
+                issues={myIssues}
+                repositories={myRepositories}
+                currentUserId={user.id}
+              />
+            )}
+            {currentUserRole === Role.ADMIN && (
+              <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 <MyTasksDialog
                   tasks={tasks}
                   currentUserId={user.id}
                   personalTodos={personalTodos}
-                  isAdmin={currentUserRole === Role.ADMIN}
+                  isAdmin
                 />
                 <CreateTodoDialog />
               </div>
-              {currentUserRole === Role.ADMIN && projects.length > 0 && (
+              {projects.length > 0 && (
                 <>
                   <CreateTaskDialog projects={projects} members={allMembers} />
-                  <TeamListDialog members={allMembers} />
+                  <TeamListDialog initialTeams={adminTeams as any} />
                 </>
               )}
-            </div>
+              </div>
+            )}
           </div>
         </header>
 
@@ -450,43 +468,6 @@ export default async function DashboardPage() {
                 )}
               </CardContent>
             </Card>
-            {/* Member Quick Links */}
-            {currentUserRole === Role.MEMBER && (
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-primary/5 transition-colors group cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500 group-hover:scale-110 transition-transform">
-                      <Zap className="h-3 w-3" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-tighter">My Sprint</span>
-                  </div>
-                </Card>
-                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-amber-500/5 transition-colors group cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-500 group-hover:scale-110 transition-transform">
-                      <AlertTriangle className="h-3 w-3" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-tighter">My Issues</span>
-                  </div>
-                </Card>
-                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-emerald-500/5 transition-colors group cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 group-hover:scale-110 transition-transform">
-                      <CheckSquare className="h-3 w-3" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-tighter">My Tasks</span>
-                  </div>
-                </Card>
-                <Card className="glass-card rounded-2xl border-none p-3 hover:bg-slate-500/5 transition-colors group cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-slate-500/10 rounded-lg text-slate-500 group-hover:scale-110 transition-transform">
-                      <GitBranch className="h-3 w-3" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-tighter">Joined Repo</span>
-                  </div>
-                </Card>
-              </div>
-            )}
           </div>
         </div>
       </div>

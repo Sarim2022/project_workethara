@@ -28,95 +28,100 @@ enum TaskPriority {
 }
 
 model User {
-  id            String    @id @default(dbgenerated("gen_random_uuid()"))
-  name          String?
-  email         String    @unique
-  password      String
-  role          Role      @default(MEMBER)
-  
-  createdProjects Project[] @relation("ProjectCreator")
-  projects        Project[] @relation("ProjectMembers")
-  assignedTasks   Task[]    @relation("AssignedTasks")
+  id       String  @id @default(dbgenerated("gen_random_uuid()"))
+  name     String?
+  email    String  @unique
+  password String
+  role     Role    @default(MEMBER)
+
+  createdProjects     Project[]    @relation("ProjectCreator")
+  repoAdminProjects   Project[]    @relation("ProjectRepoAdmin")
+  administeredTeams   Team[]
+  projects            Project[]    @relation("ProjectMembers")
+  assignedTasks       Task[]       @relation("AssignedTasks")
   assignedSprintTasks SprintTask[] @relation("AssignedSprintTasks")
-  statusLogs      StatusLog[]
-  
-  createdSprints  Sprint[]      @relation("SprintCreator")
-  meetingRooms    MeetingRoom[]
-  personalTodos   PersonalTodo[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  teamMembership      TeamMember?
+  statusLogs          StatusLog[]
+
+  createdSprints Sprint[]       @relation("SprintCreator")
+  meetingRooms   MeetingRoom[]
+  personalTodos  PersonalTodo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Project {
-  id          String   @id @default(dbgenerated("gen_random_uuid()"))
-  name        String
-  description String?
+  id            String    @id @default(dbgenerated("gen_random_uuid()"))
+  name          String
+  description   String?
   clientDetails String?
-  deadline    DateTime?
-  repoLink    String?
-  
+  deadline      DateTime?
+  repoLink      String?
+  repoAdminId   String?
+  repoAdmin     User?     @relation("ProjectRepoAdmin", fields: [repoAdminId], references: [id], onDelete: SetNull)
+
   createdById String
-  createdBy   User     @relation("ProjectCreator", fields: [createdById], references: [id])
-  
-  members     User[]   @relation("ProjectMembers")
-  tasks       Task[]
-  sprints     Sprint[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdBy   User   @relation("ProjectCreator", fields: [createdById], references: [id])
+
+  members User[]   @relation("ProjectMembers")
+  tasks   Task[]
+  sprints Sprint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Sprint {
-  id          String   @id @default(dbgenerated("gen_random_uuid()"))
-  name        String
-  duration    Int      // Weeks
-  crId        Int?     // Added CR ID field
-  
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  id       String @id @default(dbgenerated("gen_random_uuid()"))
+  name     String
+  duration Int // Weeks
+  crId     Int? // Added CR ID field
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   createdById String
-  createdBy   User     @relation("SprintCreator", fields: [createdById], references: [id])
-  
-  tasks       SprintTask[]
-  
-  createdAt   DateTime @default(now())
+  createdBy   User   @relation("SprintCreator", fields: [createdById], references: [id])
+
+  tasks SprintTask[]
+
+  createdAt DateTime @default(now())
 }
 
 model SprintTask {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  title     String
-  week      Int
-  
-  sprintId  String
-  sprint    Sprint   @relation(fields: [sprintId], references: [id], onDelete: Cascade)
-  
+  id    String @id @default(dbgenerated("gen_random_uuid()"))
+  title String
+  week  Int
+
+  sprintId String
+  sprint   Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+
   assigneeId String?
-  assignee   User?    @relation("AssignedSprintTasks", fields: [assigneeId], references: [id])
+  assignee   User?      @relation("AssignedSprintTasks", fields: [assigneeId], references: [id])
   status     TaskStatus @default(PENDING)
 }
 
 model MeetingRoom {
-  id          String   @id @default(dbgenerated("gen_random_uuid()"))
-  name        String
-  userCount   Int
-  link        String?
-  
+  id        String  @id @default(dbgenerated("gen_random_uuid()"))
+  name      String
+  userCount Int
+  link      String?
+
   createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  
-  createdAt   DateTime @default(now())
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model PersonalTodo {
-  id          String   @id @default(dbgenerated("gen_random_uuid()"))
-  title       String
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
+  id    String @id @default(dbgenerated("gen_random_uuid()"))
+  title String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
 model Task {
@@ -126,26 +131,48 @@ model Task {
   status      TaskStatus   @default(PENDING)
   priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
-  
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  assigneeId  String?
-  assignee    User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  
-  logs        StatusLog[]
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assigneeId String?
+  assignee   User?   @relation("AssignedTasks", fields: [assigneeId], references: [id])
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  logs StatusLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id        String       @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime     @default(now())
+  teamName  String
+  adminId   String
+  admin     User         @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  tasks     Task[]
+}
+
+model TeamMember {
+  id        String @id @default(dbgenerated("gen_random_uuid()"))
+  teamId    String
+  team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userEmail String
+  userId    String @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model StatusLog {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  id        String      @id @default(dbgenerated("gen_random_uuid()"))
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
   oldStatus TaskStatus?
   newStatus TaskStatus
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
 }

@@ -52,6 +52,33 @@ export async function createTask(formData: FormData) {
       where: { id: validated.data.assigneeId }
     });
     if (!assignee) throw new Error("Selected team member does not exist.");
+
+    const membership = await prisma.teamMember.findFirst({
+      where: { userId: assignee.id },
+      include: {
+        team: true
+      }
+    });
+
+    if (!membership || membership.team.adminId !== user.id) {
+      throw new Error("Assignment locked: member must belong to one of your created teams.");
+    }
+
+    await prisma.task.create({
+      data: {
+        title: validated.data.title,
+        description: validated.data.description,
+        status: (validated.data.status as TaskStatus) || TaskStatus.PENDING,
+        priority: (validated.data.priority as TaskPriority) || TaskPriority.MEDIUM,
+        projectId: validated.data.projectId,
+        assigneeId: validated.data.assigneeId || null,
+        dueDate: validated.data.dueDate ? new Date(validated.data.dueDate) : null,
+        teamId: membership.teamId
+      },
+    });
+
+    revalidatePath("/dashboard");
+    return;
   }
 
   await prisma.task.create({
@@ -63,6 +90,7 @@ export async function createTask(formData: FormData) {
       projectId: validated.data.projectId,
       assigneeId: validated.data.assigneeId || null,
       dueDate: validated.data.dueDate ? new Date(validated.data.dueDate) : null,
+      teamId: null
     },
   });
 
@@ -75,13 +103,21 @@ export async function updateTaskPhase(taskId: string) {
 
   const task = await prisma.task.findUnique({ 
     where: { id: taskId },
-    include: { project: true }
+    include: {
+      project: true,
+      team: {
+        include: {
+          members: true
+        }
+      }
+    }
   });
   if (!task) throw new Error("Task not found");
 
   // Only Admin (Owner) or Assignee can update
   if (user.role !== Role.ADMIN && task.assigneeId !== user.id) {
-    if (task.project.createdById !== user.id) {
+    const inSameTeam = task.team?.members.some((member) => member.userId === user.id);
+    if (!inSameTeam && task.project.createdById !== user.id) {
       throw new Error("Unauthorized");
     }
   }
@@ -115,12 +151,20 @@ export async function updateTaskPhaseBackward(taskId: string) {
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { project: true }
+    include: {
+      project: true,
+      team: {
+        include: {
+          members: true
+        }
+      }
+    }
   });
   if (!task) throw new Error("Task not found");
 
   if (user.role !== Role.ADMIN && task.assigneeId !== user.id) {
-    if (task.project.createdById !== user.id) {
+    const inSameTeam = task.team?.members.some((member) => member.userId === user.id);
+    if (!inSameTeam && task.project.createdById !== user.id) {
       throw new Error("Unauthorized");
     }
   }
@@ -154,12 +198,20 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
 
   const task = await prisma.task.findUnique({ 
     where: { id: taskId },
-    include: { project: true }
+    include: {
+      project: true,
+      team: {
+        include: {
+          members: true
+        }
+      }
+    }
   });
   if (!task) throw new Error("Task not found");
 
   if (user.role !== Role.ADMIN && task.assigneeId !== user.id) {
-    if (task.project.createdById !== user.id) {
+    const inSameTeam = task.team?.members.some((member) => member.userId === user.id);
+    if (!inSameTeam && task.project.createdById !== user.id) {
       throw new Error("Unauthorized");
     }
   }
@@ -330,14 +382,15 @@ export async function getTasks() {
   if (!user) return [];
 
   // Data Isolation: Admins see tasks in their projects. Members see tasks assigned to them or in their projects.
-  const where = user.role === Role.ADMIN 
+  const membership = user.role === Role.MEMBER
+    ? await prisma.teamMember.findFirst({ where: { userId: user.id } })
+    : null;
+
+  const where = user.role === Role.ADMIN
     ? { project: { createdById: user.id } }
-    : {
-        OR: [
-          { assigneeId: user.id },
-          { project: { members: { some: { id: user.id } } } }
-        ]
-      };
+    : membership
+      ? { teamId: membership.teamId }
+      : { id: "__no_member_team__" };
 
   return await prisma.task.findMany({
     where,
@@ -350,10 +403,32 @@ export async function getTasks() {
 }
 
 export async function getAllMembers() {
-  return await prisma.user.findMany({
-    where: { role: Role.MEMBER },
-    select: { id: true, name: true, email: true }
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.ADMIN) return [];
+
+  const teamMembers = await prisma.teamMember.findMany({
+    where: {
+      team: {
+        adminId: user.id
+      }
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true }
+      },
+      team: {
+        select: { id: true, teamName: true }
+      }
+    }
   });
+
+  return teamMembers.map((membership) => ({
+    id: membership.user.id,
+    name: membership.user.name,
+    email: membership.user.email,
+    teamId: membership.team.id,
+    teamName: membership.team.teamName
+  }));
 }
 
 export async function getStats() {
@@ -364,9 +439,15 @@ export async function getStats() {
     ? { createdById: user.id } 
     : { members: { some: { id: user.id } } };
   
-  const taskWhere = user.role === Role.ADMIN 
+  const membership = user.role === Role.MEMBER
+    ? await prisma.teamMember.findFirst({ where: { userId: user.id } })
+    : null;
+
+  const taskWhere = user.role === Role.ADMIN
     ? { project: { createdById: user.id } }
-    : { assigneeId: user.id };
+    : membership
+      ? { teamId: membership.teamId }
+      : { id: "__no_member_team__" };
 
   const [projectCount, taskCount, completedCount] = await Promise.all([
     prisma.project.count({ where: projectWhere }),

@@ -56,7 +56,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-3xl font-bold tracking-tight">Workethara Portal</CardTitle>
           <CardDescription>
-            Select your role and enter your credentials.
+            Manage projects. Assign tasks. Track progress.
           </CardDescription>
         </CardHeader>
         

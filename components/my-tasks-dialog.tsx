@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +21,10 @@ interface MyTasksDialogProps {
   currentUserId: string;
   personalTodos: any[];
   isAdmin?: boolean;
+  trigger?: ReactNode;
 }
 
-export function MyTasksDialog({ tasks, currentUserId, personalTodos = [], isAdmin = false }: MyTasksDialogProps) {
+export function MyTasksDialog({ tasks, currentUserId, personalTodos = [], isAdmin = false, trigger }: MyTasksDialogProps) {
   const [loadingTodo, setLoadingTodo] = useState<string | null>(null);
 
   // Filter tasks assigned to the current user
@@ -61,9 +63,11 @@ export function MyTasksDialog({ tasks, currentUserId, personalTodos = [], isAdmi
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="rounded-xl border-slate-200 dark:border-zinc-800 shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all active:scale-95">
-          <ListTodo className="mr-2 h-4 w-4 text-primary" /> My Tasks
-        </Button>
+        {trigger || (
+          <Button variant="outline" className="rounded-xl border-slate-200 dark:border-zinc-800 shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all active:scale-95">
+            <ListTodo className="mr-2 h-4 w-4 text-primary" /> My Tasks
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] rounded-3xl border-none shadow-2xl glass-card custom-scrollbar max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -124,10 +128,17 @@ export function MyTasksDialog({ tasks, currentUserId, personalTodos = [], isAdmi
                     <span>Status</span>
                   </div>
                   {myTasks.map((task) => (
-                    <button
+                    <div
                       key={task.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleTaskCardTap(task.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleTaskCardTap(task.id);
+                        }
+                      }}
                       className="w-full text-left grid grid-cols-[1.6fr_1fr_0.9fr_1.2fr] gap-3 items-center p-3 rounded-2xl bg-white/40 dark:bg-slate-800/40 border border-slate-100 dark:border-zinc-800/50 hover:border-primary/30 transition-all"
                       title="Tap task row to move next status"
                     >
@@ -140,10 +151,13 @@ export function MyTasksDialog({ tasks, currentUserId, personalTodos = [], isAdmi
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
                         {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
                       </span>
-                      <div onClick={(event) => event.stopPropagation()}>
+                      <div
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
                         <TaskPhaseButton taskId={task.id} currentStatus={task.status} />
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </>
               )}

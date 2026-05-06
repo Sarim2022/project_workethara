@@ -5,9 +5,20 @@ import { Briefcase, GitBranch, Mail, MessageSquare, Video } from "lucide-react";
 import { Role } from "@prisma/client";
 import { UserSearch } from "./user-search";
 import { Button } from "./ui/button";
+import { prisma } from "@/lib/prisma";
 
 export async function Header() {
   const user = await getCurrentUser();
+  const joinedTeam = user?.role === Role.MEMBER
+    ? await prisma.teamMember.findFirst({
+        where: { userId: user.id },
+        include: {
+          team: {
+            select: { teamName: true }
+          }
+        }
+      })
+    : null;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/60 dark:border-zinc-800/50 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md">
@@ -17,7 +28,7 @@ export async function Header() {
             <div className="p-2 bg-primary rounded-xl shadow-lg shadow-primary/20 transition-transform group-hover:scale-105">
               <Briefcase className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">Workethara</span>
+            <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">Work4ethara</span>
           </Link>
         </div>
         <div className="flex items-center space-x-3">
@@ -41,6 +52,11 @@ export async function Header() {
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700/50 group hover:border-primary/30 transition-colors">
               <Mail className="h-3 w-3 text-slate-400 group-hover:text-primary transition-colors" />
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{user.email}</span>
+            </div>
+          )}
+          {joinedTeam?.team?.teamName && (
+            <div className="hidden sm:inline-flex items-center px-3 py-1 rounded-full border border-primary/20 bg-primary/10 text-[10px] font-black text-primary uppercase tracking-wider">
+              Joined: {joinedTeam.team.teamName}
             </div>
           )}
           {user && (

@@ -1,6 +1,6 @@
 "use server";
 
-import { TaskStatus } from "@prisma/client";
+import { Role, TaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -62,13 +62,30 @@ export async function createSprint(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-export async function updateProjectRepo(projectId: string, repoLink: string) {
+export async function updateProjectRepo(projectId: string, repoLink: string, repoAdminId?: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== "ADMIN") throw new Error("Unauthorized");
 
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, createdById: user.id },
+    include: { members: { select: { id: true, role: true } } }
+  });
+  if (!project) throw new Error("Unauthorized: You do not own this project.");
+
+  const selectedRepoAdminId = repoAdminId && repoAdminId !== "unassigned" ? repoAdminId : null;
+  if (selectedRepoAdminId) {
+    const selectedMember = project.members.find((member) => member.id === selectedRepoAdminId);
+    if (!selectedMember || selectedMember.role !== Role.MEMBER) {
+      throw new Error("Assign Team Admin must be a member of the selected project.");
+    }
+  }
+
   await prisma.project.update({
     where: { id: projectId },
-    data: { repoLink }
+    data: {
+      repoLink,
+      repoAdminId: selectedRepoAdminId
+    }
   });
 
   revalidatePath("/dashboard");
@@ -173,6 +190,56 @@ export async function getAssignedSprintTasks(userId: string) {
       }
     },
     orderBy: { week: "asc" }
+  });
+}
+
+export async function getAssignedSprints(userId: string) {
+  return await prisma.sprint.findMany({
+    where: {
+      tasks: {
+        some: {
+          assigneeId: userId,
+          status: { not: TaskStatus.DONE }
+        }
+      }
+    },
+    include: {
+      project: true,
+      tasks: {
+        where: { assigneeId: userId },
+        orderBy: { week: "asc" }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export async function getMemberRepositoryLinks(userId: string) {
+  const user = await getCurrentUser();
+  if (!user || user.id !== userId) return [];
+
+  const membership = await prisma.teamMember.findFirst({
+    where: { userId },
+    select: { teamId: true }
+  });
+
+  return await prisma.project.findMany({
+    where: {
+      repoLink: { not: null },
+      OR: [
+        { members: { some: { id: userId } } },
+        { tasks: { some: { teamId: membership?.teamId ?? "__no_member_team__" } } },
+        { tasks: { some: { assigneeId: userId } } },
+        { sprints: { some: { tasks: { some: { assigneeId: userId } } } } }
+      ]
+    },
+    select: {
+      id: true,
+      name: true,
+      repoLink: true,
+      repoAdminId: true
+    },
+    orderBy: { updatedAt: "desc" }
   });
 }
 export async function updateSprintTaskStatus(taskId: string, status: TaskStatus) {

@@ -25,7 +25,7 @@ import { Plus, FolderOpen, User as UserIcon } from "lucide-react";
 
 interface CreateTaskDialogProps {
   projects: { id: string; name: string }[];
-  members: { id: string; name: string | null; email: string }[];
+  members: { id: string; name: string | null; email: string; teamName?: string }[];
 }
 
 export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
@@ -64,6 +64,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
   // Find names for display
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const selectedMember = members.find(m => m.id === selectedAssigneeId);
+  const assignmentLocked = members.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -79,6 +80,11 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
             <DialogDescription className="text-muted-foreground">
               Add a new task and assign it to a team member.
             </DialogDescription>
+            {assignmentLocked && (
+              <p className="text-xs text-amber-600 font-semibold mt-2">
+                Assignment lock: create at least one team in My Team before assigning members.
+              </p>
+            )}
           </DialogHeader>
           <div className="grid gap-6 py-6">
             <div className="grid gap-2">
@@ -123,6 +129,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                   name="assigneeId" 
                   value={selectedAssigneeId ?? undefined} 
                   onValueChange={(val) => setSelectedAssigneeId(val)}
+                  disabled={assignmentLocked}
                 >
                   <SelectTrigger className="focus:ring-primary overflow-hidden">
                     <SelectValue>
@@ -140,7 +147,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {members.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
-                        {member.name || member.email.split('@')[0]}
+                        {(member.name || member.email.split('@')[0]) + (member.teamName ? ` (${member.teamName})` : "")}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -190,7 +197,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
             )}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={loading} className="w-full sm:w-auto shadow-lg shadow-primary/20">
+            <Button type="submit" disabled={loading || (assignmentLocked && selectedAssigneeId !== "unassigned")} className="w-full sm:w-auto shadow-lg shadow-primary/20">
               {loading ? "Creating..." : "Save Task"}
             </Button>
           </DialogFooter>

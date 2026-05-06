@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   Dialog,
@@ -15,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, ListTodo, Loader2, CheckCircle2 } from "lucide-react";
 import { createPersonalTodo } from "@/app/actions/features";
 
-export function CreateTodoDialog() {
+export function CreateTodoDialog({ trigger }: { trigger?: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -43,9 +44,11 @@ export function CreateTodoDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl shadow-sm hover:scale-110 active:scale-95 transition-all border-slate-200">
-          <Plus className="h-4 w-4" />
-        </Button>
+        {trigger || (
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl shadow-sm hover:scale-110 active:scale-95 transition-all border-slate-200">
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl glass-card">
         <form onSubmit={handleSubmit}>

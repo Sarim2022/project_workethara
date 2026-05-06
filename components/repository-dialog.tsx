@@ -17,13 +17,21 @@ import { GitBranch, Loader2, CheckCircle2, Link as LinkIcon } from "lucide-react
 import { updateProjectRepo } from "@/app/actions/features";
 
 interface RepositoryDialogProps {
-  projects: { id: string, name: string }[];
+  projects: {
+    id: string;
+    name: string;
+    members?: { id: string; name: string | null; email: string; role?: string }[];
+  }[];
 }
 
 export function RepositoryDialog({ projects }: RepositoryDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [projectId, setProjectId] = useState("");
+
+  const selectedProject = projects.find((project) => project.id === projectId);
+  const assignableMembers = (selectedProject?.members || []).filter((member) => member.role !== "ADMIN");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,9 +39,10 @@ export function RepositoryDialog({ projects }: RepositoryDialogProps) {
     const formData = new FormData(event.currentTarget);
     const projectId = formData.get("projectId") as string;
     const repoLink = formData.get("repoLink") as string;
+    const repoAdminId = formData.get("repoAdminId") as string;
     
     try {
-      await updateProjectRepo(projectId, repoLink);
+      await updateProjectRepo(projectId, repoLink, repoAdminId);
       setSuccess(true);
       setTimeout(() => {
         setOpen(false);
@@ -65,7 +74,7 @@ export function RepositoryDialog({ projects }: RepositoryDialogProps) {
           <div className="grid gap-6 py-6">
             <div className="grid gap-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Target Project</Label>
-              <Select name="projectId" required>
+              <Select name="projectId" required value={projectId} onValueChange={(value) => setProjectId(value ?? "")}>
                 <SelectTrigger className="h-11 rounded-xl border-slate-200">
                   <SelectValue placeholder="Choose project workspace" />
                 </SelectTrigger>
@@ -88,6 +97,26 @@ export function RepositoryDialog({ projects }: RepositoryDialogProps) {
                 />
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Assign Team Admin</Label>
+              <Select key={projectId} name="repoAdminId" disabled={!projectId || assignableMembers.length === 0}>
+                <SelectTrigger className="h-11 rounded-xl border-slate-200">
+                  <SelectValue placeholder={projectId ? "Choose repository admin" : "Select project first"} />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl z-[130] bg-background">
+                  <SelectItem value="unassigned">No team admin</SelectItem>
+                  {assignableMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name || member.email.split("@")[0]} ({member.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] font-medium text-slate-400">
+                This member receives elevated repository rights for the selected project.
+              </p>
             </div>
           </div>
 

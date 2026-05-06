@@ -1,0 +1,6 @@
+ALTER TABLE "Project" ADD COLUMN "repoAdminId" TEXT;
+
+ALTER TABLE "Project"
+ADD CONSTRAINT "Project_repoAdminId_fkey"
+FOREIGN KEY ("repoAdminId") REFERENCES "User"("id")
+ON DELETE SET NULL ON UPDATE CASCADE;
