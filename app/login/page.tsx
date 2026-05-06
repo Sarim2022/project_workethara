@@ -46,8 +46,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0a0a0a] p-4">
-      <Card className="w-full max-w-md shadow-2xl border-none ring-1 ring-black/5 dark:ring-white/5 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-[#0a0a0a] dark:via-zinc-950 dark:to-black p-4">
+      <Card className="w-full max-w-md rounded-3xl shadow-2xl border-none ring-1 ring-black/5 dark:ring-white/5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl">
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-primary rounded-2xl shadow-lg shadow-primary/20">

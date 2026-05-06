@@ -33,7 +33,10 @@ export function UserNav({ user }: UserNavProps) {
           </Avatar>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm rounded-2xl" showCloseButton={false}>
+      <DialogContent
+        className="sm:max-w-sm rounded-3xl border-none shadow-2xl ring-1 ring-black/5 dark:ring-white/5 bg-white/85 dark:bg-zinc-900/80 backdrop-blur-md"
+        showCloseButton={false}
+      >
         <DialogHeader>
           <DialogTitle className="text-lg font-black">Wanna logout from workethara</DialogTitle>
           <DialogDescription className="text-xs">

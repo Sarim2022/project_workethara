@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { UserNav } from "./user-nav";
 import { getCurrentUser } from "@/lib/auth";
-import { Briefcase, Mail, MessageSquare, Video } from "lucide-react";
+import { Briefcase, GitBranch, Mail, MessageSquare, Video } from "lucide-react";
 import { Role } from "@prisma/client";
 import { UserSearch } from "./user-search";
 import { Button } from "./ui/button";
@@ -21,24 +21,42 @@ export async function Header() {
           </Link>
         </div>
         <div className="flex items-center space-x-3">
+          {!user && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500">Created by Sarim</span>
+              <a
+                href="https://github.com/Sarim2022"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex"
+                title="Sarim GitHub"
+              >
+                <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary">
+                  <GitBranch className="h-4 w-4" />
+                </Button>
+              </a>
+            </div>
+          )}
           {user && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700/50 group hover:border-primary/30 transition-colors">
               <Mail className="h-3 w-3 text-slate-400 group-hover:text-primary transition-colors" />
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{user.email}</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            {user?.role === Role.ADMIN && <UserSearch />}
-            <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Email">
-              <Mail className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Chat">
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Meet">
-              <Video className="h-4 w-4" />
-            </Button>
-          </div>
+          {user && (
+            <div className="flex items-center gap-2">
+              {user.role === Role.ADMIN && <UserSearch />}
+              <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Email">
+                <Mail className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Chat">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Meet">
+                <Video className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           {user && (
             <>
               <div className="h-8 w-px bg-slate-200 dark:bg-zinc-800 mx-1" />
