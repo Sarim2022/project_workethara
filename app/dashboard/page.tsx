@@ -75,7 +75,11 @@ export default async function DashboardPage() {
 
   const isOverdue = (task: any) => {
     if (!task.dueDate || task.status === TaskStatus.DONE) return false;
-    return new Date(task.dueDate) < new Date();
+    const dueDate = new Date(task.dueDate);
+    const today = new Date();
+    dueDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return dueDate < today;
   };
 
   const overdueCount = tasks.filter(isOverdue).length;

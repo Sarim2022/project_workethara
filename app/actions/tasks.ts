@@ -7,6 +7,45 @@ import { getCurrentUser } from "@/lib/auth";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 
+export type ActivityFeedItem =
+  | {
+      id: string;
+      type: "status";
+      createdAt: Date;
+      user: { name: string | null; email: string; role: Role };
+      task: { title: string };
+      oldStatus: TaskStatus | null;
+      newStatus: TaskStatus;
+    }
+  | {
+      id: string;
+      type: "sprint_created";
+      createdAt: Date;
+      user: { name: string | null; email: string; role: Role };
+      sprint: { title: string; projectName: string };
+    }
+  | {
+      id: string;
+      type: "project_created";
+      createdAt: Date;
+      user: { name: string | null; email: string; role: Role };
+      project: { name: string };
+    }
+  | {
+      id: string;
+      type: "task_created";
+      createdAt: Date;
+      user: { name: string | null; email: string; role: Role };
+      task: { title: string; projectName: string; assigneeName: string | null; assigneeEmail: string | null };
+    }
+  | {
+      id: string;
+      type: "team_created";
+      createdAt: Date;
+      user: { name: string | null; email: string; role: Role };
+      team: { name: string; memberCount: number };
+    };
+
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional().nullable(),
@@ -244,7 +283,7 @@ export async function getActivityFeed() {
     ? { task: { project: { createdById: user.id } } }
     : { task: { project: { members: { some: { id: user.id } } } } };
 
-  const [statusLogs, sprintCreates] = await Promise.all([
+  const [statusLogs, sprintCreates, projectCreates, taskCreates, teamCreates] = await Promise.all([
     prisma.statusLog.findMany({
       where: logWhere,
       take: 5,
@@ -264,10 +303,41 @@ export async function getActivityFeed() {
         project: { select: { name: true } },
         createdBy: { select: { name: true, email: true, role: true } }
       }
+    }),
+    prisma.project.findMany({
+      where: { createdById: user.id },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        createdBy: { select: { name: true, email: true, role: true } }
+      }
+    }),
+    prisma.task.findMany({
+      where: { project: { createdById: user.id } },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        project: {
+          select: {
+            name: true,
+            createdBy: { select: { name: true, email: true, role: true } }
+          }
+        },
+        assignee: { select: { name: true, email: true } }
+      }
+    }),
+    prisma.team.findMany({
+      where: { adminId: user.id },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        admin: { select: { name: true, email: true, role: true } },
+        members: { select: { id: true } }
+      }
     })
   ]);
 
-  const merged = [
+  const merged: ActivityFeedItem[] = [
     ...statusLogs.map((log) => ({
       id: `status-${log.id}`,
       type: "status" as const,
@@ -285,6 +355,37 @@ export async function getActivityFeed() {
       sprint: {
         title: sprint.name,
         projectName: sprint.project.name
+      }
+    })),
+    ...projectCreates.map((project) => ({
+      id: `project-${project.id}`,
+      type: "project_created" as const,
+      createdAt: project.createdAt,
+      user: project.createdBy,
+      project: {
+        name: project.name
+      }
+    })),
+    ...taskCreates.map((task) => ({
+      id: `task-${task.id}`,
+      type: "task_created" as const,
+      createdAt: task.createdAt,
+      user: task.project.createdBy,
+      task: {
+        title: task.title,
+        projectName: task.project.name,
+        assigneeName: task.assignee?.name ?? null,
+        assigneeEmail: task.assignee?.email ?? null
+      }
+    })),
+    ...teamCreates.map((team) => ({
+      id: `team-${team.id}`,
+      type: "team_created" as const,
+      createdAt: team.createdAt,
+      user: team.admin,
+      team: {
+        name: team.teamName,
+        memberCount: team.members.length
       }
     }))
   ]
