@@ -1,5 +1,5 @@
 import { getStats, getProjects, getTasks, deleteTask, getAllMembers } from "@/app/actions/tasks";
-import { getPersonalTodos } from "@/app/actions/features";
+import { getPersonalTodos, getSprints, getAssignedSprintTasks } from "@/app/actions/features";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
@@ -12,6 +12,7 @@ import { TeamListDialog } from "@/components/team-list-dialog";
 import { AddMemberDialog } from "@/components/add-member-dialog";
 import { AdminActivityFeed } from "@/components/admin-activity-feed";
 import { TaskPhaseButton } from "@/components/task-phase-button";
+import { SprintTaskPhaseButton } from "@/components/sprint-task-phase-button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,8 @@ import {
   GitBranch,
   Zap,
   Target,
-  Plus
+  Plus,
+  Clock
 } from "lucide-react";
 import { Role, TaskStatus, TaskPriority } from "@prisma/client";
 import Link from "next/link";
@@ -61,6 +63,9 @@ export default async function DashboardPage() {
   const tasks = await getTasks();
   const personalTodos = await getPersonalTodos();
   const allMembers = currentUserRole === Role.ADMIN ? await getAllMembers() : [];
+  
+  const sprints = currentUserRole === Role.ADMIN ? await getSprints() : [];
+  const mySprintTasks = currentUserRole === Role.MEMBER ? await getAssignedSprintTasks(user.id) : [];
 
   const isOverdue = (task: any) => {
     if (!task.dueDate || task.status === TaskStatus.DONE) return false;
@@ -112,6 +117,39 @@ export default async function DashboardPage() {
           </div>
         </header>
 
+        {/* Member Assigned Sprint Tasks Reflector */}
+        {currentUserRole === Role.MEMBER && mySprintTasks.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-500">
+                <Target className="h-5 w-5" />
+              </div>
+              <h2 className="text-xl font-black tracking-tight uppercase">My Sprint Goals</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {mySprintTasks.map((st: any) => (
+                <Card key={st.id} className="glass-card rounded-2xl border-none shadow-lg group hover:scale-[1.02] transition-all">
+                  <CardContent className="p-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-indigo-500 text-white border-none text-[8px] font-black px-1.5 h-4">WEEK {st.week}</Badge>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase truncate max-w-[100px]">{st.sprint.project.name}</span>
+                      </div>
+                      <SprintTaskPhaseButton taskId={st.id} currentStatus={st.status} />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                        <Zap className="h-4 w-4" />
+                      </div>
+                      <p className="text-sm font-black text-slate-900 dark:text-white truncate">{st.title}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content (Left 2/3) */}
           <div className="lg:col-span-2 space-y-8">
@@ -129,7 +167,7 @@ export default async function DashboardPage() {
                       <h4 className="font-bold text-sm">Create Sprint</h4>
                       <p className="text-[10px] text-muted-foreground mt-1">Plan team cycle</p>
                     </div>
-                    <CreateSprintDialog projects={projects} />
+                    <CreateSprintDialog projects={projects} members={allMembers} />
                   </CardContent>
                 </Card>
 
@@ -334,6 +372,47 @@ export default async function DashboardPage() {
           {/* Sidebar (Right 1/3) */}
           <div className="space-y-8">
             {currentUserRole === Role.ADMIN && <AdminActivityFeed />}
+            
+            {/* Admin Sprint Dashboard Reflector (Sidebar) */}
+            {currentUserRole === Role.ADMIN && sprints.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 px-1">
+                  <Zap className="h-4 w-4 text-blue-500" />
+                  <h2 className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-400">Sprint Dash</h2>
+                </div>
+                <div className="space-y-4">
+                  {sprints.slice(0, 3).map((sprint) => (
+                    <Card key={sprint.id} className="glass-card rounded-2xl border-none shadow-lg overflow-hidden group">
+                      <div className="h-1 w-full bg-blue-500" />
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                          <div className="min-w-0 flex-1">
+                            <Badge className="bg-blue-500/10 text-blue-500 border-none text-[8px] font-black uppercase px-1.5 h-4 mb-1">
+                              CR ID: {sprint.crId || "N/A"}
+                            </Badge>
+                            <CardTitle className="text-sm font-black truncate">{sprint.name}</CardTitle>
+                            <p className="text-[9px] text-muted-foreground font-bold uppercase truncate">Project: {sprint.project.name}</p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <div className="mt-3 space-y-2">
+                          {sprint.tasks.slice(0, 3).map((st: any) => (
+                            <div key={st.id} className="p-2 bg-slate-50/50 dark:bg-zinc-800/50 rounded-xl border border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                              <span className="text-[9px] font-bold truncate flex-1 text-slate-700 dark:text-slate-300">{st.title}</span>
+                              <Badge className="bg-blue-500/10 text-blue-500 border-none text-[7px] font-black px-1 h-3.5 shrink-0">W{st.week}</Badge>
+                            </div>
+                          ))}
+                          {sprint.tasks.length > 3 && (
+                            <p className="text-[8px] text-center text-slate-400 font-bold uppercase pt-1">+{sprint.tasks.length - 3} more tasks</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Active Projects Card */}
             <Card className="glass-card rounded-[2rem] border-none shadow-2xl overflow-hidden">

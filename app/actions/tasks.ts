@@ -232,7 +232,13 @@ export async function getProjects() {
   // Data Isolation: Admins only see projects THEY created. Members see projects they are IN.
   const where = user.role === Role.ADMIN 
     ? { createdById: user.id } 
-    : { members: { some: { id: user.id } } };
+    : { 
+        OR: [
+          { members: { some: { id: user.id } } },
+          { tasks: { some: { assigneeId: user.id } } },
+          { sprints: { some: { tasks: { some: { assigneeId: user.id } } } } }
+        ]
+      };
 
   return await prisma.project.findMany({
     where,

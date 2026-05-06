@@ -18,16 +18,18 @@ import { createSprint } from "@/app/actions/features";
 
 interface CreateSprintDialogProps {
   projects: { id: string, name: string }[];
+  members: { id: string, name: string | null, email: string }[];
 }
 
-export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
+export function CreateSprintDialog({ projects, members }: CreateSprintDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [duration, setDuration] = useState("2");
-  const [weeks, setWeeks] = useState<{ id: number, tasks: string[] }[]>([
-    { id: 1, tasks: [""] },
-    { id: 2, tasks: [""] }
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [weeks, setWeeks] = useState<{ id: number, tasks: { title: string, assigneeId: string }[] }[]>([
+    { id: 1, tasks: [{ title: "", assigneeId: "" }] },
+    { id: 2, tasks: [{ title: "", assigneeId: "" }] }
   ]);
 
   const updateWeeks = (val: string) => {
@@ -35,19 +37,26 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
     const count = parseInt(val);
     const newWeeks = Array.from({ length: count }, (_, i) => ({
       id: i + 1,
-      tasks: [""]
+      tasks: [{ title: "", assigneeId: "" }]
     }));
     setWeeks(newWeeks);
   };
 
   const addTask = (weekId: number) => {
-    setWeeks(prev => prev.map(w => w.id === weekId ? { ...w, tasks: [...w.tasks, ""] } : w));
+    setWeeks(prev => prev.map(w => w.id === weekId ? { ...w, tasks: [...w.tasks, { title: "", assigneeId: "" }] } : w));
   };
 
-  const updateTask = (weekId: number, taskIdx: number, val: string) => {
+  const updateTaskTitle = (weekId: number, taskIdx: number, val: string) => {
     setWeeks(prev => prev.map(w => w.id === weekId ? { 
       ...w, 
-      tasks: w.tasks.map((t, i) => i === taskIdx ? val : t) 
+      tasks: w.tasks.map((t, i) => i === taskIdx ? { ...t, title: val } : t) 
+    } : w));
+  };
+
+  const updateTaskAssignee = (weekId: number, taskIdx: number, val: string) => {
+    setWeeks(prev => prev.map(w => w.id === weekId ? { 
+      ...w, 
+      tasks: w.tasks.map((t, i) => i === taskIdx ? { ...t, assigneeId: val } : t) 
     } : w));
   };
 
@@ -62,12 +71,20 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
     event.preventDefault();
     setLoading(true);
     const formData = new FormData(event.currentTarget);
+    formData.set("projectId", selectedProjectId);
     try {
       await createSprint(formData);
       setSuccess(true);
       setTimeout(() => {
         setOpen(false);
         setSuccess(false);
+        // Reset
+        setSelectedProjectId("");
+        setDuration("2");
+        setWeeks([
+          { id: 1, tasks: [{ title: "", assigneeId: "" }] },
+          { id: 2, tasks: [{ title: "", assigneeId: "" }] }
+        ]);
       }, 2000);
     } catch (error) {
       console.error(error);
@@ -76,6 +93,8 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
     }
   }
 
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -83,7 +102,7 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
           START SPRINT
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto rounded-3xl border-none shadow-2xl glass-card custom-scrollbar">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto rounded-3xl border-none shadow-2xl glass-card custom-scrollbar">
         <form onSubmit={handleSubmit}>
           <DialogHeader className="items-center text-center">
             <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 mb-2">
@@ -93,18 +112,26 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
           </DialogHeader>
 
           <div className="grid gap-6 py-6">
-            <div className="grid gap-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Select Project</Label>
-              <Select name="projectId" required>
-                <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                  <SelectValue placeholder="Choose project workspace" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {projects.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Select Project</Label>
+                <Select name="projectId" value={selectedProjectId} onValueChange={setSelectedProjectId} required>
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200">
+                    <SelectValue>
+                      {selectedProject ? selectedProject.name : "Choose project"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">CR ID (Numeric)</Label>
+                <Input name="crId" type="number" placeholder="e.g. 1024" className="h-11 rounded-xl border-slate-200" />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -116,7 +143,9 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Duration (Weeks)</Label>
                 <Select name="duration" value={duration} onValueChange={(val) => val && updateWeeks(val)}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                    <SelectValue />
+                    <SelectValue>
+                      {duration} Week{parseInt(duration) > 1 ? "s" : ""}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
                     {[1, 2, 3, 4].map(v => (
@@ -136,23 +165,49 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
                       <Plus className="h-3 w-3" /> ADD TASK
                     </Button>
                   </div>
-                  <div className="space-y-2">
-                    {week.tasks.map((task, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <Input 
-                          name={`week-${week.id}-task-${idx}`}
-                          value={task}
-                          onChange={(e) => updateTask(week.id, idx, e.target.value)}
-                          placeholder="Task title..."
-                          className="h-9 text-xs rounded-lg bg-white dark:bg-zinc-900 border-slate-200"
-                        />
-                        {week.tasks.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeTask(week.id, idx)} className="h-9 w-9 text-slate-400 hover:text-red-500">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {week.tasks.map((task, idx) => {
+                      const selectedAssignee = members.find(m => m.id === task.assigneeId);
+                      return (
+                        <div key={idx} className="flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 shadow-sm relative group">
+                          <div className="flex gap-2">
+                            <Input 
+                              name={`week-${week.id}-task-${idx}`}
+                              value={task.title}
+                              onChange={(e) => updateTaskTitle(week.id, idx, e.target.value)}
+                              placeholder="Task title..."
+                              className="h-9 text-xs rounded-lg border-slate-200 flex-1"
+                            />
+                            {week.tasks.length > 1 && (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeTask(week.id, idx)} className="h-9 w-9 text-slate-400 hover:text-red-500">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[9px] font-black uppercase text-slate-400 shrink-0">Assignee:</Label>
+                            <Select 
+                              name={`week-${week.id}-task-${idx}-assignee`} 
+                              value={task.assigneeId} 
+                              onValueChange={(val) => updateTaskAssignee(week.id, idx, val)}
+                            >
+                              <SelectTrigger className="h-8 text-[10px] rounded-lg border-slate-100 bg-slate-50/50">
+                                <SelectValue>
+                                  {selectedAssignee ? (selectedAssignee.name || selectedAssignee.email.split('@')[0]) : "Assign to member..."}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {members.map(m => (
+                                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                                    {m.name || m.email}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -172,7 +227,7 @@ export function CreateSprintDialog({ projects }: CreateSprintDialogProps) {
 
 function Badge({ children, className, variant }: any) {
   return (
-    <span className={`px-2 py-0.5 rounded text-[10px] ${variant === 'outline' ? 'border' : ''} ${className}`}>
+    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${variant === 'outline' ? 'border' : ''} ${className}`}>
       {children}
     </span>
   );

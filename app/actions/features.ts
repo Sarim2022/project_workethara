@@ -11,29 +11,49 @@ export async function createSprint(formData: FormData) {
   const name = formData.get("name") as string;
   const projectId = formData.get("projectId") as string;
   const duration = parseInt(formData.get("duration") as string);
+  const crIdString = formData.get("crId") as string;
+  const crId = crIdString ? parseInt(crIdString) : null;
 
   if (!name || !projectId || isNaN(duration)) throw new Error("Missing sprint details");
 
   // Extract weekly tasks from formData
-  // Keys will be like: "week-1-task-0", "week-1-task-1", etc.
-  const taskData: { title: string, week: number }[] = [];
+  // Keys will be like: "week-1-task-0", "week-1-task-1-assignee", etc.
+  const taskMap: Map<string, { title: string, week: number, assigneeId?: string }> = new Map();
   
   formData.forEach((value, key) => {
     if (key.startsWith("week-") && key.includes("-task-")) {
       const parts = key.split("-");
       const week = parseInt(parts[1]);
-      taskData.push({ title: value as string, week });
+      const taskIndex = parts[3];
+      const mapKey = `${week}-${taskIndex}`;
+      
+      const current = taskMap.get(mapKey) || { title: "", week };
+      
+      if (key.endsWith("-assignee")) {
+        current.assigneeId = value as string;
+      } else {
+        current.title = value as string;
+      }
+      
+      taskMap.set(mapKey, current);
     }
   });
+
+  const taskData = Array.from(taskMap.values()).filter(t => t.title.trim() !== "");
 
   await prisma.sprint.create({
     data: {
       name,
       projectId,
       duration,
+      crId,
       createdById: user.id,
       tasks: {
-        create: taskData
+        create: taskData.map(t => ({
+          title: t.title,
+          week: t.week,
+          assigneeId: t.assigneeId || null
+        }))
       }
     }
   });
@@ -102,4 +122,81 @@ export async function getPersonalTodos() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" }
   });
+}
+
+export async function getSprints() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "ADMIN") return [];
+
+  return await prisma.sprint.findMany({
+    include: {
+      project: true,
+      tasks: {
+        include: {
+          assignee: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export async function getProjectSprints(projectId: string) {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  return await prisma.sprint.findMany({
+    where: { projectId },
+    include: {
+      tasks: {
+        include: {
+          assignee: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export async function getAssignedSprintTasks(userId: string) {
+  return await prisma.sprintTask.findMany({
+    where: { assigneeId: userId },
+    include: {
+      sprint: {
+        include: {
+          project: true
+        }
+      }
+    },
+    orderBy: { week: "asc" }
+  });
+}
+export async function updateSprintTaskStatus(taskId: string, status: TaskStatus) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  return await prisma.sprintTask.update({
+    where: { id: taskId },
+    data: { status }
+  });
+}
+
+export async function updateSprintTaskPhase(taskId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const task = await prisma.sprintTask.findUnique({ where: { id: taskId } });
+  if (!task) throw new Error("Task not found");
+
+  const phases: TaskStatus[] = [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.TESTING, TaskStatus.DONE];
+  const currentIndex = phases.indexOf(task.status);
+  const nextIndex = (currentIndex + 1) % phases.length;
+  const newStatus = phases[nextIndex];
+
+  await prisma.sprintTask.update({
+    where: { id: taskId },
+    data: { status: newStatus }
+  });
+
+  revalidatePath("/dashboard");
 }
