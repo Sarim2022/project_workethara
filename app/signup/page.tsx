@@ -21,7 +21,11 @@ export default function SignupPage() {
     const formData = new FormData(event.currentTarget);
     
     try {
-      await signup(formData);
+      const result = await signup(formData);
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to create account");
       setLoading(false);

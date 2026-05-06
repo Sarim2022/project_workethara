@@ -7,21 +7,21 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 
 export async function signup(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const name = formData.get("name") as string;
-
-  if (!email || !password) throw new Error("Missing credentials");
-
-  // Domain Validation Logic
-  if (!email.endsWith("@workspace.in") && !email.endsWith("@email.in")) {
-    throw new Error("Please use your official @workspace.in or @email.in address");
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const role = getRoleFromEmail(email);
-
   try {
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const name = formData.get("name") as string;
+
+    if (!email || !password) return { error: "Missing credentials" };
+
+    // Domain Validation Logic
+    if (!email.endsWith("@workspace.in") && !email.endsWith("@email.in")) {
+      return { error: "Please use your official @workspace.in or @email.in address" };
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const role = getRoleFromEmail(email);
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -36,8 +36,9 @@ export async function signup(formData: FormData) {
     const session = await encrypt({ userId: user.id, email: user.email, role: user.role, expires });
 
     (await cookies()).set("session", session, { expires, httpOnly: true });
-  } catch (error) {
-    throw new Error("User already exists or database error");
+  } catch (error: any) {
+    console.error("Signup error:", error);
+    return { error: error.message || "User already exists or database error" };
   }
 
   redirect("/dashboard");
