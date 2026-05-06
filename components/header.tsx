@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { UserNav } from "./user-nav";
 import { getCurrentUser } from "@/lib/auth";
-import { Briefcase, LayoutDashboard, LogOut, Mail } from "lucide-react";
+import { Briefcase, Mail, MessageSquare, Video } from "lucide-react";
 import { Role } from "@prisma/client";
 import { UserSearch } from "./user-search";
 import { Button } from "./ui/button";
-import { logout } from "@/app/actions/auth";
 
 export async function Header() {
   const user = await getCurrentUser();
@@ -28,18 +27,22 @@ export async function Header() {
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{user.email}</span>
             </div>
           )}
-          {user?.role === Role.ADMIN && (
-            <UserSearch />
-          )}
+          <div className="flex items-center gap-2">
+            {user?.role === Role.ADMIN && <UserSearch />}
+            <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Email">
+              <Mail className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Chat">
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon-sm" className="text-slate-500 hover:text-primary" title="Meet">
+              <Video className="h-4 w-4" />
+            </Button>
+          </div>
           {user && (
             <>
               <div className="h-8 w-px bg-slate-200 dark:bg-zinc-800 mx-1" />
               <UserNav user={user} />
-              <form action={logout}>
-                <Button type="submit" variant="ghost" size="icon" className="text-slate-500 hover:text-red-600 transition-colors" title="Logout">
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </form>
             </>
           )}
         </div>

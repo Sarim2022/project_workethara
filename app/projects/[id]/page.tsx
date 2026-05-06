@@ -6,21 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Briefcase, 
-  ArrowLeft, 
   Trash2, 
-  Edit3, 
   Users, 
   Calendar,
-  CheckCircle2,
-  Clock,
-  PlayCircle,
-  ClipboardList,
   FileText,
   Zap,
   Target
 } from "lucide-react";
-import Link from "next/link";
 import { deleteProject } from "@/app/actions/tasks";
 import { getProjectSprints } from "@/app/actions/features";
 import { 
@@ -31,6 +23,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { InstantDashboardBackButton } from "@/components/instant-dashboard-back-button";
 
 export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -78,11 +71,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         
         {/* Navigation & Actions */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <Button asChild variant="ghost" size="sm" className="gap-2 text-slate-500 hover:text-primary">
-            <Link href="/dashboard">
-              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-            </Link>
-          </Button>
+          <InstantDashboardBackButton />
           
           {user.role === Role.ADMIN && (
             <div className="flex items-center gap-3">
@@ -90,7 +79,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
                 "use server";
                 await deleteProject(project.id);
               }}>
-                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 rounded-xl gap-2">
+                <Button type="submit" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 rounded-xl gap-2">
                   <Trash2 className="h-4 w-4" /> Delete Project
                 </Button>
               </form>

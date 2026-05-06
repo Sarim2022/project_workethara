@@ -109,6 +109,45 @@ export async function updateTaskPhase(taskId: string) {
   revalidatePath("/dashboard");
 }
 
+export async function updateTaskPhaseBackward(taskId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { project: true }
+  });
+  if (!task) throw new Error("Task not found");
+
+  if (user.role !== Role.ADMIN && task.assigneeId !== user.id) {
+    if (task.project.createdById !== user.id) {
+      throw new Error("Unauthorized");
+    }
+  }
+
+  const phases: TaskStatus[] = [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.TESTING, TaskStatus.DONE];
+  const currentIndex = phases.indexOf(task.status);
+  const previousIndex = (currentIndex - 1 + phases.length) % phases.length;
+  const newStatus = phases[previousIndex];
+
+  await prisma.$transaction([
+    prisma.task.update({
+      where: { id: taskId },
+      data: { status: newStatus }
+    }),
+    prisma.statusLog.create({
+      data: {
+        taskId,
+        userId: user.id,
+        oldStatus: task.status,
+        newStatus
+      }
+    })
+  ]);
+
+  revalidatePath("/dashboard");
+}
+
 export async function updateTaskStatus(taskId: string, status: TaskStatus) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -149,19 +188,58 @@ export async function getActivityFeed() {
   if (!user) return [];
 
   // Data Isolation: Only see activity for projects you are involved in
-  const where = user.role === Role.ADMIN 
+  const logWhere = user.role === Role.ADMIN
     ? { task: { project: { createdById: user.id } } }
     : { task: { project: { members: { some: { id: user.id } } } } };
 
-  return await prisma.statusLog.findMany({
-    where,
-    take: 5,
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { name: true, email: true, role: true } },
-      task: { select: { title: true } }
-    }
-  });
+  const [statusLogs, sprintCreates] = await Promise.all([
+    prisma.statusLog.findMany({
+      where: logWhere,
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { name: true, email: true, role: true } },
+        task: { select: { title: true } }
+      }
+    }),
+    prisma.sprint.findMany({
+      where: user.role === Role.ADMIN
+        ? { createdById: user.id }
+        : { project: { members: { some: { id: user.id } } } },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        project: { select: { name: true } },
+        createdBy: { select: { name: true, email: true, role: true } }
+      }
+    })
+  ]);
+
+  const merged = [
+    ...statusLogs.map((log) => ({
+      id: `status-${log.id}`,
+      type: "status" as const,
+      createdAt: log.createdAt,
+      user: log.user,
+      task: log.task,
+      oldStatus: log.oldStatus,
+      newStatus: log.newStatus
+    })),
+    ...sprintCreates.map((sprint) => ({
+      id: `sprint-${sprint.id}`,
+      type: "sprint_created" as const,
+      createdAt: sprint.createdAt,
+      user: sprint.createdBy,
+      sprint: {
+        title: sprint.name,
+        projectName: sprint.project.name
+      }
+    }))
+  ]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 5);
+
+  return merged;
 }
 
 export async function createProject(formData: FormData) {

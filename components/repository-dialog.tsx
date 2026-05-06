@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GitBranch, Loader2, CheckCircle2, Link as LinkIcon, X } from "lucide-react";
+import { GitBranch, Loader2, CheckCircle2, Link as LinkIcon } from "lucide-react";
 import { updateProjectRepo } from "@/app/actions/features";
 
 interface RepositoryDialogProps {
@@ -69,7 +69,7 @@ export function RepositoryDialog({ projects }: RepositoryDialogProps) {
                 <SelectTrigger className="h-11 rounded-xl border-slate-200">
                   <SelectValue placeholder="Choose project workspace" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl">
+                <SelectContent className="rounded-xl z-[130] bg-background">
                   {projects.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}

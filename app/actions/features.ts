@@ -130,6 +130,9 @@ export async function getSprints() {
   if (!user || user.role !== "ADMIN") return [];
 
   return await prisma.sprint.findMany({
+    where: {
+      createdById: user.id
+    },
     include: {
       project: true,
       tasks: {
@@ -193,6 +196,26 @@ export async function updateSprintTaskPhase(taskId: string) {
   const currentIndex = phases.indexOf(task.status);
   const nextIndex = (currentIndex + 1) % phases.length;
   const newStatus = phases[nextIndex];
+
+  await prisma.sprintTask.update({
+    where: { id: taskId },
+    data: { status: newStatus }
+  });
+
+  revalidatePath("/dashboard");
+}
+
+export async function updateSprintTaskPhaseBackward(taskId: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const task = await prisma.sprintTask.findUnique({ where: { id: taskId } });
+  if (!task) throw new Error("Task not found");
+
+  const phases: TaskStatus[] = [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.TESTING, TaskStatus.DONE];
+  const currentIndex = phases.indexOf(task.status);
+  const previousIndex = (currentIndex - 1 + phases.length) % phases.length;
+  const newStatus = phases[previousIndex];
 
   await prisma.sprintTask.update({
     where: { id: taskId },

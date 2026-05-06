@@ -26,6 +26,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [sprintName, setSprintName] = useState("");
   const [duration, setDuration] = useState("2");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [weeks, setWeeks] = useState<{ id: number, tasks: { title: string, assigneeId: string }[] }[]>([
@@ -79,6 +80,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
       setTimeout(() => {
         setOpen(false);
         setSuccess(false);
+        setSprintName("");
         setSelectedProjectId("");
         setDuration("2");
         setWeeks([
@@ -108,7 +110,16 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
             <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 mb-2">
               <Zap className="h-6 w-6" />
             </div>
-            <DialogTitle className="text-2xl font-black tracking-tight uppercase">New Team Sprint</DialogTitle>
+            <DialogTitle className="w-full">
+              <Input
+                name="name"
+                value={sprintName}
+                onChange={(e) => setSprintName(e.target.value)}
+                placeholder="NEW TEAM SPRINT"
+                required
+                className="h-12 rounded-xl border-slate-200 text-center text-lg font-black tracking-tight uppercase"
+              />
+            </DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-6 py-6">
@@ -127,7 +138,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
                       {selectedProject ? selectedProject.name : "Choose project"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectContent className="rounded-xl z-[130] bg-background">
                     {projects.map(p => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
@@ -140,11 +151,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sprint Name</Label>
-                <Input name="name" placeholder="e.g. Q4 Growth Cycle" required className="h-11 rounded-xl border-slate-200" />
-              </div>
+            <div className="grid grid-cols-1 gap-4">
               <div className="grid gap-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Duration (Weeks)</Label>
                 <Select name="duration" value={duration} onValueChange={(val) => val && updateWeeks(val)}>
@@ -153,7 +160,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
                       {duration} Week{parseInt(duration) > 1 ? "s" : ""}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectContent className="rounded-xl z-[130] bg-background">
                     {[1, 2, 3, 4].map(v => (
                       <SelectItem key={v} value={v.toString()}>{v} Week{v > 1 ? "s" : ""}</SelectItem>
                     ))}
@@ -203,7 +210,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
                                   {selectedAssignee ? (selectedAssignee.name || selectedAssignee.email.split('@')[0]) : "Assign to member..."}
                                 </SelectValue>
                               </SelectTrigger>
-                              <SelectContent className="rounded-xl">
+                              <SelectContent className="rounded-xl z-[130] bg-background">
                                 {members.map(m => (
                                   <SelectItem key={m.id} value={m.id} className="text-xs">
                                     {m.name || m.email}

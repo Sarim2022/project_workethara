@@ -106,7 +106,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                       ) : "Select project"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[130] bg-background">
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
@@ -136,7 +136,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                       ) : "Select member"}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[130] bg-background">
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {members.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
@@ -155,7 +155,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                   <SelectTrigger className="focus:ring-primary">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[130] bg-background">
                     <SelectItem value="PENDING">Pending</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="TESTING">Testing</SelectItem>
@@ -169,7 +169,7 @@ export function CreateTaskDialog({ projects, members }: CreateTaskDialogProps) {
                   <SelectTrigger className="focus:ring-primary">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[130] bg-background">
                     <SelectItem value="LOW">Low</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HIGH">High</SelectItem>
