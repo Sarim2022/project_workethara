@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge"; // Ensure this is imported from your UI folder
 import { Zap, Plus, Trash2, Loader2, CheckCircle2 } from "lucide-react";
 import { createSprint } from "@/app/actions/features";
 
@@ -47,23 +48,23 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
   };
 
   const updateTaskTitle = (weekId: number, taskIdx: number, val: string) => {
-    setWeeks(prev => prev.map(w => w.id === weekId ? { 
-      ...w, 
-      tasks: w.tasks.map((t, i) => i === taskIdx ? { ...t, title: val } : t) 
+    setWeeks(prev => prev.map(w => w.id === weekId ? {
+      ...w,
+      tasks: w.tasks.map((t, i) => i === taskIdx ? { ...t, title: val } : t)
     } : w));
   };
 
   const updateTaskAssignee = (weekId: number, taskIdx: number, val: string) => {
-    setWeeks(prev => prev.map(w => w.id === weekId ? { 
-      ...w, 
-      tasks: w.tasks.map((t, i) => i === taskIdx ? { ...t, assigneeId: val } : t) 
+    setWeeks(prev => prev.map(w => w.id === weekId ? {
+      ...w,
+      tasks: w.tasks.map((t, i) => i === taskIdx ? { ...t, assigneeId: val } : t)
     } : w));
   };
 
   const removeTask = (weekId: number, taskIdx: number) => {
-    setWeeks(prev => prev.map(w => w.id === weekId ? { 
-      ...w, 
-      tasks: w.tasks.filter((_, i) => i !== taskIdx) 
+    setWeeks(prev => prev.map(w => w.id === weekId ? {
+      ...w,
+      tasks: w.tasks.filter((_, i) => i !== taskIdx)
     } : w));
   };
 
@@ -78,7 +79,6 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
       setTimeout(() => {
         setOpen(false);
         setSuccess(false);
-        // Reset
         setSelectedProjectId("");
         setDuration("2");
         setWeeks([
@@ -115,9 +115,15 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Select Project</Label>
-                <Select name="projectId" value={selectedProjectId} onValueChange={setSelectedProjectId} required>
+                {/* FIX: Handled null check and used setSelectedProjectId instead of task handler */}
+                <Select name="projectId" onValueChange={(val: string | null) => {
+                  if (typeof val === 'string') {
+                    setSelectedProjectId(val);
+                  }
+                }}
+                  required>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                    <SelectValue>
+                    <SelectValue placeholder="Choose project">
                       {selectedProject ? selectedProject.name : "Choose project"}
                     </SelectValue>
                   </SelectTrigger>
@@ -171,7 +177,7 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
                       return (
                         <div key={idx} className="flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 shadow-sm relative group">
                           <div className="flex gap-2">
-                            <Input 
+                            <Input
                               name={`week-${week.id}-task-${idx}`}
                               value={task.title}
                               onChange={(e) => updateTaskTitle(week.id, idx, e.target.value)}
@@ -186,13 +192,14 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
                           </div>
                           <div className="flex items-center gap-2">
                             <Label className="text-[9px] font-black uppercase text-slate-400 shrink-0">Assignee:</Label>
-                            <Select 
-                              name={`week-${week.id}-task-${idx}-assignee`} 
-                              value={task.assigneeId} 
-                              onValueChange={(val) => updateTaskAssignee(week.id, idx, val)}
+                            <Select
+                              name={`week-${week.id}-task-${idx}-assignee`}
+                              value={task.assigneeId}
+                              /* FIX: Handled null check for TypeScript */
+                              onValueChange={(val) => val && updateTaskAssignee(week.id, idx, val)}
                             >
                               <SelectTrigger className="h-8 text-[10px] rounded-lg border-slate-100 bg-slate-50/50">
-                                <SelectValue>
+                                <SelectValue placeholder="Assign to member...">
                                   {selectedAssignee ? (selectedAssignee.name || selectedAssignee.email.split('@')[0]) : "Assign to member..."}
                                 </SelectValue>
                               </SelectTrigger>
@@ -222,13 +229,5 @@ export function CreateSprintDialog({ projects, members }: CreateSprintDialogProp
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Badge({ children, className, variant }: any) {
-  return (
-    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${variant === 'outline' ? 'border' : ''} ${className}`}>
-      {children}
-    </span>
   );
 }
