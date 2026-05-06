@@ -15,18 +15,10 @@ import { Users, Mail, User as UserIcon, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { createTeam, getAdminTeams } from "@/app/actions/teams";
+import type { AdminTeam } from "@/app/actions/teams";
 
 interface TeamListDialogProps {
-  initialTeams: {
-    id: string;
-    teamName: string;
-    members: {
-      id: string;
-      userEmail: string;
-      userId: string;
-      user: { id: string; email: string; name: string | null };
-    }[];
-  }[];
+  initialTeams: AdminTeam[];
 }
 
 export function TeamListDialog({ initialTeams }: TeamListDialogProps) {
@@ -47,13 +39,18 @@ export function TeamListDialog({ initialTeams }: TeamListDialogProps) {
     setLoading(true);
     setError("");
     try {
-      await createTeam(teamName, parsedEmails);
+      const result = await createTeam(teamName, parsedEmails);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
       const freshTeams = await getAdminTeams();
-      setTeams(freshTeams as any);
+      setTeams(freshTeams);
       setTeamName("");
       setMemberEmails("");
-    } catch (err: any) {
-      setError(err.message || "Failed to create team");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create team");
     } finally {
       setLoading(false);
     }

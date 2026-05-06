@@ -5,6 +5,21 @@ import { getCurrentUser } from "@/lib/auth";
 import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+type CreateTeamResult =
+  | { success: true; error?: never }
+  | { success: false; error: string };
+
+export type AdminTeam = {
+  id: string;
+  teamName: string;
+  members: {
+    id: string;
+    userEmail: string;
+    userId: string;
+    user: { id: string; email: string; name: string | null };
+  }[];
+};
+
 export async function getAdminTeams() {
   const user = await getCurrentUser();
   if (!user || user.role !== Role.ADMIN) return [];
@@ -28,19 +43,31 @@ export async function getAdminTeams() {
   });
 }
 
-export async function createTeam(teamName: string, memberEmails: string[]) {
+export async function createTeam(teamName: string, memberEmails: string[]): Promise<CreateTeamResult> {
   const user = await getCurrentUser();
-  if (!user || user.role !== Role.ADMIN) throw new Error("Unauthorized");
+  if (!user || user.role !== Role.ADMIN) {
+    return { success: false, error: "Unauthorized" };
+  }
 
   const normalizedName = teamName.trim();
-  if (!normalizedName) throw new Error("Team name is required");
+  if (!normalizedName) {
+    return { success: false, error: "Team name is required" };
+  }
 
   const normalizedEmails = Array.from(
     new Set(memberEmails.map((email) => email.trim().toLowerCase()).filter(Boolean))
   );
 
   if (normalizedEmails.length === 0) {
-    throw new Error("Add at least one valid member email");
+    return { success: false, error: "Add at least one valid member email" };
+  }
+
+  const invalidEmails = normalizedEmails.filter((email) => !email.endsWith("@email.in"));
+  if (invalidEmails.length > 0) {
+    return {
+      success: false,
+      error: `Team members must use @email.in addresses: ${invalidEmails.join(", ")}`
+    };
   }
 
   const users = await prisma.user.findMany({
@@ -52,7 +79,12 @@ export async function createTeam(teamName: string, memberEmails: string[]) {
   });
 
   if (users.length !== normalizedEmails.length) {
-    throw new Error("One or more member emails are invalid or not members");
+    const foundEmails = new Set(users.map((member) => member.email.toLowerCase()));
+    const missingEmails = normalizedEmails.filter((email) => !foundEmails.has(email));
+    return {
+      success: false,
+      error: `These member emails are not registered yet: ${missingEmails.join(", ")}`
+    };
   }
 
   const existingMemberships = await prisma.teamMember.findMany({
@@ -71,23 +103,32 @@ export async function createTeam(teamName: string, memberEmails: string[]) {
 
   if (existingMemberships.length > 0) {
     const conflict = existingMemberships[0];
-    throw new Error(`${conflict.userEmail} is already in team "${conflict.team.teamName}"`);
+    return {
+      success: false,
+      error: `${conflict.userEmail} is already in team "${conflict.team.teamName}"`
+    };
   }
 
-  await prisma.team.create({
-    data: {
-      teamName: normalizedName,
-      adminId: user.id,
-      members: {
-        create: users.map((member) => ({
-          userEmail: member.email,
-          userId: member.id
-        }))
+  try {
+    await prisma.team.create({
+      data: {
+        teamName: normalizedName,
+        adminId: user.id,
+        members: {
+          create: users.map((member) => ({
+            userEmail: member.email,
+            userId: member.id
+          }))
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("Create team error:", error);
+    return { success: false, error: "Failed to create team. Please try again." };
+  }
 
   revalidatePath("/dashboard");
+  return { success: true };
 }
 
 export async function getCurrentUserTeam() {
